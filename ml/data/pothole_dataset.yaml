@@ -1,0 +1,15 @@
+# Pothole Dataset Configuration for YOLOv8
+# Dataset: idanbaru/annotated-potholes-with-severity-levels (converted from Pascal VOC)
+
+path: c:/Users/Abhinandan Singh/Desktop/projects/Hole-Lotta-Problems/Hole-lotta-problems/ml/data/yolo_dataset
+train: images/train
+val: images/val
+
+# Number of classes
+nc: 3
+
+# Class names
+names:
+  0: minor
+  1: moderate
+  2: severe

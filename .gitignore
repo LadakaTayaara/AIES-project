@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.env
+venv/
+env/
+
+# Node
+node_modules/
+dist/
+build/
+.expo/
+
+# Machine Learning / Large Files
+*.pt
+*.pth
+*.h5
+*.weights
+*.onnx
+*.zip
+*.tar.gz
+*.csv
+
+# Datasets
+ml/data/annotations/
+ml/data/images/
+ml/data/yolo_dataset/
+
+# Misc
+.DS_Store

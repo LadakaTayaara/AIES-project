@@ -1,0 +1,20 @@
+fastapi==0.109.0
+uvicorn==0.27.0
+python-multipart==0.0.9
+pydantic>=2.11.5
+# AI & Data Dependencies (Placeholders for AMD stack)
+torch
+torchvision
+torchaudio
+# Note: For AMD ROCm, you would install the ROCm version of PyTorch:
+# pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/rocm5.6
+opencv-python-headless
+ultralytics
+transformers
+spacy
+sentence-transformers
+celery
+redis
+sqlalchemy
+psycopg2-binary
+tweepy

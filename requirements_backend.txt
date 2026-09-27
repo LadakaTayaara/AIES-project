@@ -1,0 +1,51 @@
+# Core
+torch==2.1.0
+torchvision==0.16.0
+numpy==1.24.3
+pillow==10.0.0
+opencv-python==4.8.1.78
+
+# YOLOv8
+ultralytics==8.0.196
+
+# ONNX
+onnx==1.14.1
+onnxruntime==1.16.1
+
+# LLM / NLP
+transformers==4.35.0
+sentence-transformers==2.2.2
+spacy==3.7.2
+bitsandbytes==0.41.1
+accelerate==0.24.1
+groq==0.3.0
+
+# Backend
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic>=2.11.5
+python-multipart==0.0.6
+httpx==0.25.1
+
+# Database
+sqlalchemy==2.0.23
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+geoalchemy2==0.14.2
+alembic==1.12.1
+
+# Cache / Queue
+redis==5.0.1
+celery==5.3.4
+
+# Twitter Bot
+tweepy==4.14.0
+apscheduler==3.10.4
+
+# Data
+pandas==2.1.2
+scikit-learn==1.3.2
+
+# Utils
+python-dotenv==1.0.0
+loguru==0.7.2
