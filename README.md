@@ -191,18 +191,6 @@ DEVICE=cuda  # Change to 'rocm' for AMD GPU deployment or 'cpu'
 
 ---
 
-## 👥 Meet the Team
-
-**Hole Lotta Problems** was proudly built as an AMD Slingshot Project.
-
-| Name | Role |
-|------|------|
-| **Aviraj Sinha** | Backend Architecture, Mobile App (React Native) |
-| **Abhinandan Singh** | Backend Integration, CV Model Training, AMD ROCm |
-| **Abhinav Bisht** | Frontend Design, Pitch Presentation, Product Strategy |
-
----
-
 ## 📄 License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for deeper details.
