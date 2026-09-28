@@ -1,14 +1,20 @@
-# Pothole Dataset Configuration for YOLOv8
+# Pothole Dataset Configuration
 # Dataset: idanbaru/annotated-potholes-with-severity-levels (converted from Pascal VOC)
+#
+# For RF-DETR training, use the COCO format dataset at:
+#   ml/data/coco_dataset/
+# The training script (ml/model/train/train.py) automatically converts
+# from YOLO format to COCO format if needed.
 
-path: c:/Users/Abhinandan Singh/Desktop/projects/Hole-Lotta-Problems/Hole-lotta-problems/ml/data/yolo_dataset
+# YOLO format paths (for reference / fallback)
+path: ./yolo_dataset
 train: images/train
 val: images/val
 
 # Number of classes
 nc: 3
 
-# Class names
+# Class names (severity levels)
 names:
   0: minor
   1: moderate
