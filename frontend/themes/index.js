@@ -1,96 +1,78 @@
 /**
- * Hole Lotta Problems — Tactical Design System
- * Theme: Obsidian & Signal Amber // Aero-Tactical Road Intelligence
+ * Hole Lotta Problems — Mobile Design System
+ * Aesthetic: Technical Minimalism (Linear / Raycast / Teenage Engineering)
  */
 
 export const theme = {
     colors: {
-        // Deep obsidian titanium backgrounds
-        void:             '#05070b',
-        background:       '#080c14',
-        surface:          '#0e1422',
-        elevated:         '#141d30',
-        elevatedHover:    '#1a263e',
+        // Deep Zinc/Slate Monochromatic Base
+        canvas:           '#09090b',   // Zinc 950
+        background:       '#09090b',
+        surface:          '#121215',   // Zinc 900
+        elevated:         '#18181b',   // Zinc 850
+        muted:            '#27272a',   // Zinc 800
 
-        // Primary: Signal Hazard Amber & Cyber Gold
-        primary:          '#f59e0b',   // Signal Amber
-        primaryLight:     '#fbbf24',
-        primaryDark:      '#d97706',
-        primaryGlow:      'rgba(245, 158, 11, 0.25)',
-        primaryGlowStrong:'rgba(245, 158, 11, 0.45)',
+        // Typography Foregrounds
+        text:             '#fafafa',   // 100% white
+        textSecondary:    '#a1a1aa',   // ~65% body text
+        textTertiary:     '#71717a',   // ~45% metadata
+        textDisabled:     '#52525b',   // ~30% disabled
 
-        // Secondary: Electric Cyan / Tactical Phosphorus
-        cyan:             '#00f0ff',
-        cyanLight:        '#67e8f9',
-        cyanDark:         '#0891b2',
-        cyanGlow:         'rgba(0, 240, 255, 0.25)',
+        // Single Purposeful Accent (Teenage Engineering safety orange)
+        primary:          '#f97316',
+        primarySubtle:    'rgba(249, 115, 22, 0.12)',
+        primaryBorder:    'rgba(249, 115, 22, 0.30)',
 
-        // Semantic Severity Colors
-        critical:         '#ff1744',   // Laser Crimson
-        criticalGlow:     'rgba(255, 23, 68, 0.35)',
-        warning:          '#ff9100',   // Tungsten Orange
-        warningGlow:      'rgba(255, 145, 0, 0.35)',
-        success:          '#00e676',   // Phosphor Mint
-        successGlow:      'rgba(0, 230, 118, 0.25)',
+        // Semantic Severity
+        critical:         '#ef4444',
+        criticalSubtle:   'rgba(239, 68, 68, 0.12)',
+        warning:          '#f59e0b',
+        warningSubtle:    'rgba(245, 158, 11, 0.12)',
+        success:          '#10b981',
+        successSubtle:    'rgba(16, 185, 129, 0.12)',
 
-        // High-contrast tactical typography
-        text:             '#f8fafc',
-        textSecondary:    '#94a3b8',
-        textDim:          '#64748b',
-        textMuted:        '#475569',
+        // Razor 1px Structural Dividers
+        borderSubtle:     'rgba(255, 255, 255, 0.08)',
+        border:           'rgba(255, 255, 255, 0.12)',
+        borderFocus:      'rgba(255, 255, 255, 0.28)',
 
-        // Borders & Overlays
-        border:           'rgba(255, 255, 255, 0.07)',
-        borderLight:      'rgba(255, 255, 255, 0.14)',
-        borderAccent:     'rgba(245, 158, 11, 0.35)',
-        borderCyan:       'rgba(0, 240, 255, 0.30)',
-        transparentPanel: 'rgba(14, 20, 34, 0.82)',
-        darkOverlay:      'rgba(5, 7, 11, 0.88)',
+        sheetOverlay:     'rgba(9, 9, 11, 0.85)',
     },
     typography: {
         heading: {
-            fontSize: 22,
-            fontWeight: '800',
-            color: '#f8fafc',
-            letterSpacing: 0.5,
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#fafafa',
+            letterSpacing: -0.2,
         },
         subheading: {
-            fontSize: 13,
-            fontWeight: '700',
-            color: '#fbbf24',
-            letterSpacing: 1,
+            fontSize: 12,
+            fontWeight: '500',
+            color: '#a1a1aa',
             textTransform: 'uppercase',
+            letterSpacing: 0.5,
         },
         body: {
             fontSize: 14,
-            color: '#f8fafc',
+            fontWeight: '400',
+            color: '#fafafa',
             lineHeight: 20,
         },
-        stats: {
-            fontSize: 32,
-            fontWeight: '900',
-            color: '#f8fafc',
-            letterSpacing: -0.5,
-        },
-        mono: {
+        caption: {
             fontSize: 12,
+            fontWeight: '400',
+            color: '#71717a',
+        },
+        tabular: {
+            fontVariant: ['tabular-nums'],
             fontWeight: '600',
-            color: '#00f0ff',
-            letterSpacing: 0.8,
+            letterSpacing: -0.2,
         },
     },
-    effects: {
-        glassmorphism: {
-            backgroundColor: 'rgba(14, 20, 34, 0.80)',
-            borderWidth: 1,
-            borderColor: 'rgba(255, 255, 255, 0.08)',
-            borderRadius: 14,
-        },
-        tacticalBox: {
-            backgroundColor: 'rgba(14, 20, 34, 0.90)',
-            borderWidth: 1,
-            borderColor: 'rgba(245, 158, 11, 0.25)',
-            borderRadius: 10,
-        },
+    layout: {
+        radiusXs: 4,
+        radiusSm: 6,
+        radiusMd: 8,
+        radiusLg: 10,
     },
 };

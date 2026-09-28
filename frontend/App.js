@@ -36,18 +36,15 @@ export default function App() {
                         tabBarStyle: {
                             backgroundColor: theme.colors.surface,
                             borderTopWidth: 1,
-                            borderTopColor: 'rgba(245, 158, 11, 0.20)',
-                            height: 64,
-                            paddingBottom: 10,
-                            paddingTop: 8,
-                            elevation: 8,
-                            shadowColor: '#000',
-                            shadowOffset: { width: 0, height: -4 },
-                            shadowOpacity: 0.5,
-                            shadowRadius: 8,
+                            borderTopColor: theme.colors.borderSubtle,
+                            height: 54,
+                            paddingBottom: 6,
+                            paddingTop: 6,
+                            elevation: 0,
+                            shadowOpacity: 0,
                         },
-                        tabBarActiveTintColor: theme.colors.primary,
-                        tabBarInactiveTintColor: theme.colors.textMuted,
+                        tabBarActiveTintColor: theme.colors.text,
+                        tabBarInactiveTintColor: theme.colors.textTertiary,
                     }}
                 >
                     <Tab.Screen
@@ -55,13 +52,13 @@ export default function App() {
                         component={CameraScannerScreen}
                         options={{
                             tabBarIcon: ({ color, size }) => (
-                                <Crosshair color={color} size={size + 2} />
+                                <Crosshair color={color} size={18} strokeWidth={2} />
                             ),
-                            tabBarLabel: 'HUD SCANNER',
+                            tabBarLabel: 'SCANNER',
                             tabBarLabelStyle: {
                                 fontSize: 10,
-                                fontWeight: '700',
-                                letterSpacing: 0.8,
+                                fontWeight: '600',
+                                letterSpacing: 0.6,
                             },
                         }}
                     />
@@ -70,13 +67,13 @@ export default function App() {
                         component={DashboardScreen}
                         options={{
                             tabBarIcon: ({ color, size }) => (
-                                <Radio color={color} size={size + 2} />
+                                <Radio color={color} size={18} strokeWidth={2} />
                             ),
-                            tabBarLabel: 'TELEMETRY MAP',
+                            tabBarLabel: 'TELEMETRY',
                             tabBarLabelStyle: {
                                 fontSize: 10,
-                                fontWeight: '700',
-                                letterSpacing: 0.8,
+                                fontWeight: '600',
+                                letterSpacing: 0.6,
                             },
                         }}
                     />

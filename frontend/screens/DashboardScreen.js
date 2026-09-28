@@ -56,9 +56,9 @@ export default function DashboardScreen() {
 
     const rhiColor = typeof rhi === 'number'
         ? (rhi >= 70 ? theme.colors.success : rhi >= 40 ? theme.colors.warning : theme.colors.critical)
-        : theme.colors.cyan;
+        : theme.colors.textSecondary;
 
-    // Tactical Leaflet HTML (100% Free Esri Dark Canvas, No Google API key required)
+    // Tactical Leaflet HTML (Esri Tactical Dark Canvas, No Google API key required)
     const leafletHtml = useMemo(() => `
 <!DOCTYPE html>
 <html>
@@ -68,25 +68,23 @@ export default function DashboardScreen() {
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body, html, #map { width: 100%; height: 100%; background: #06090e; overflow: hidden; }
+        body, html, #map { width: 100%; height: 100%; background: #09090b; overflow: hidden; }
         .custom-marker {
             display: flex; align-items: center; justify-content: center;
-            width: 26px; height: 26px; border-radius: 50%;
-            background: #06090e; border: 2px solid; font-size: 11px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.85);
+            width: 22px; height: 22px; border-radius: 4px;
+            background: #121215; border: 1px solid; font-size: 10px; font-weight: 700;
         }
-        .marker-severe { border-color: #ff1744; color: #ff1744; box-shadow: 0 0 14px rgba(255,23,68,0.7); }
-        .marker-moderate { border-color: #ff9100; color: #ff9100; box-shadow: 0 0 12px rgba(255,145,0,0.6); }
-        .marker-minor { border-color: #00e676; color: #00e676; box-shadow: 0 0 10px rgba(0,230,118,0.5); }
+        .marker-severe { border-color: #ef4444; color: #ef4444; }
+        .marker-moderate { border-color: #f59e0b; color: #f59e0b; }
+        .marker-minor { border-color: #10b981; color: #10b981; }
         .leaflet-control-attribution { display: none !important; }
         .leaflet-popup-content-wrapper {
-            background: #0e1422 !important; color: #f8fafc !important;
-            border: 1px solid rgba(245, 158, 11, 0.4) !important;
-            border-radius: 8px !important; font-family: monospace !important;
-            font-size: 11px !important;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.8) !important;
+            background: #121215 !important; color: #fafafa !important;
+            border: 1px solid rgba(255, 255, 255, 0.12) !important;
+            border-radius: 6px !important; font-family: monospace !important;
+            font-size: 11px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
         }
-        .leaflet-popup-tip { background: #0e1422 !important; }
+        .leaflet-popup-tip { background: #121215 !important; }
     </style>
 </head>
 <body>
@@ -110,15 +108,15 @@ export default function DashboardScreen() {
 
             var sev = (p.severity || 'unknown').toLowerCase();
             var cls = 'marker-minor';
-            var em = '◈';
-            var col = '#00e676';
-            var rad = 90;
-            if (sev === 'critical' || sev === 'severe') { cls = 'marker-severe'; em = '⚠'; col = '#ff1744'; rad = 140; }
-            else if (sev === 'medium' || sev === 'moderate') { cls = 'marker-moderate'; em = '▲'; col = '#ff9100'; rad = 110; }
+            var em = '·';
+            var col = '#10b981';
+            var rad = 80;
+            if (sev === 'critical' || sev === 'severe') { cls = 'marker-severe'; em = '!'; col = '#ef4444'; rad = 120; }
+            else if (sev === 'medium' || sev === 'moderate') { cls = 'marker-moderate'; em = '▲'; col = '#f59e0b'; rad = 100; }
 
-            L.circle([lat, lng], { radius: rad, color: col, weight: 1.5, opacity: 0.6, fillColor: col, fillOpacity: 0.18 }).addTo(map);
-            var icon = L.divIcon({ className: '', html: '<div class="custom-marker ' + cls + '">' + em + '</div>', iconSize: [26, 26], iconAnchor: [13, 13] });
-            L.marker([lat, lng], { icon: icon }).bindPopup('<b style="color:' + col + '">' + sev.toUpperCase() + ' HAZARD</b><br>LAT: ' + lat.toFixed(4) + '<br>LNG: ' + lng.toFixed(4)).addTo(map);
+            L.circle([lat, lng], { radius: rad, color: col, weight: 1, opacity: 0.5, fillColor: col, fillOpacity: 0.12 }).addTo(map);
+            var icon = L.divIcon({ className: '', html: '<div class="custom-marker ' + cls + '">' + em + '</div>', iconSize: [22, 22], iconAnchor: [11, 11] });
+            L.marker([lat, lng], { icon: icon }).bindPopup('<b style="color:' + col + '">' + sev.toUpperCase() + '</b><br>LAT: ' + lat.toFixed(4) + '<br>LNG: ' + lng.toFixed(4)).addTo(map);
         });
 
         if (bounds.length > 0) {
@@ -131,12 +129,12 @@ export default function DashboardScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Tactical HUD Header */}
+            {/* Header Toolbar */}
             <View style={styles.header}>
                 <View style={styles.systemBar}>
                     <View style={styles.liveIndicator}>
                         <View style={styles.liveDot} />
-                        <Text style={styles.liveText}>RADAR TELEMETRY // ONLINE</Text>
+                        <Text style={styles.liveText}>TELEMETRY ACTIVE</Text>
                     </View>
                     <Text style={styles.engineText}>RF-DETR 2.0</Text>
                 </View>
@@ -144,56 +142,56 @@ export default function DashboardScreen() {
                 <View style={styles.statsRow}>
                     <View style={styles.statBox}>
                         <Text style={styles.statValue}>{totalReports}</Text>
-                        <Text style={styles.statLabel}>TARGETS</Text>
+                        <Text style={styles.statLabel}>INCIDENTS</Text>
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statBox}>
                         <Text style={[styles.statValue, { color: theme.colors.critical }]}>{severeCount}</Text>
-                        <Text style={[styles.statLabel, { color: theme.colors.critical }]}>CRITICAL</Text>
+                        <Text style={styles.statLabel}>SEVERE</Text>
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statBox}>
                         <Text style={[styles.statValue, { color: theme.colors.warning }]}>{moderateCount}</Text>
-                        <Text style={[styles.statLabel, { color: theme.colors.warning }]}>MODERATE</Text>
+                        <Text style={styles.statLabel}>MODERATE</Text>
                     </View>
                     <View style={styles.statDivider} />
                     <View style={styles.statBox}>
                         <View style={styles.rhiRow}>
-                            <Activity color={rhiColor} size={15} />
+                            <Activity color={rhiColor} size={13} strokeWidth={2} />
                             <Text style={[styles.statValue, { color: rhiColor }]}>
                                 {typeof rhi === 'number' ? rhi.toFixed(0) : '--'}
                             </Text>
                         </View>
-                        <Text style={[styles.statLabel, { color: theme.colors.cyan }]}>HEALTH IDX</Text>
+                        <Text style={styles.statLabel}>INDEX</Text>
                     </View>
                 </View>
             </View>
 
-            {/* Tactical Map Container */}
+            {/* Map Container */}
             <View style={styles.map}>
                 <WebView
                     originWhitelist={['*']}
                     source={{ html: leafletHtml }}
-                    style={{ flex: 1, backgroundColor: '#06090e' }}
+                    style={{ flex: 1, backgroundColor: '#09090b' }}
                     javaScriptEnabled={true}
                     domStorageEnabled={true}
                     scalesPageToFit={false}
                 />
             </View>
 
-            {/* Tactical Legend HUD */}
+            {/* Bottom Floating Legend Pill */}
             <View style={styles.legendPanel}>
                 <View style={styles.legendRow}>
-                    <View style={[styles.legendDot, { backgroundColor: theme.colors.critical, shadowColor: theme.colors.critical }]} />
-                    <Text style={styles.legendText}>CRITICAL HAZARD</Text>
+                    <View style={[styles.legendDot, { backgroundColor: theme.colors.critical }]} />
+                    <Text style={styles.legendText}>Severe</Text>
                 </View>
                 <View style={styles.legendRow}>
-                    <View style={[styles.legendDot, { backgroundColor: theme.colors.warning, shadowColor: theme.colors.warning }]} />
-                    <Text style={styles.legendText}>MODERATE</Text>
+                    <View style={[styles.legendDot, { backgroundColor: theme.colors.warning }]} />
+                    <Text style={styles.legendText}>Moderate</Text>
                 </View>
                 <View style={styles.legendRow}>
-                    <View style={[styles.legendDot, { backgroundColor: theme.colors.success, shadowColor: theme.colors.success }]} />
-                    <Text style={styles.legendText}>MONITORED</Text>
+                    <View style={[styles.legendDot, { backgroundColor: theme.colors.success }]} />
+                    <Text style={styles.legendText}>Low</Text>
                 </View>
             </View>
         </View>
@@ -203,17 +201,17 @@ export default function DashboardScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.background,
+        backgroundColor: theme.colors.canvas,
     },
 
-    // Header
+    // Header Toolbar
     header: {
-        paddingTop: 52,
-        paddingBottom: 14,
+        paddingTop: 48,
+        paddingBottom: 12,
         paddingHorizontal: 16,
         backgroundColor: theme.colors.surface,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(245, 158, 11, 0.20)',
+        borderBottomColor: theme.colors.borderSubtle,
     },
     systemBar: {
         flexDirection: 'row',
@@ -222,7 +220,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
         paddingBottom: 8,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+        borderBottomColor: theme.colors.borderSubtle,
     },
     liveIndicator: {
         flexDirection: 'row',
@@ -234,23 +232,18 @@ const styles = StyleSheet.create({
         height: 6,
         borderRadius: 3,
         backgroundColor: theme.colors.primary,
-        shadowColor: theme.colors.primary,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.9,
-        shadowRadius: 6,
-        elevation: 3,
     },
     liveText: {
         fontSize: 10,
-        fontWeight: '700',
-        color: theme.colors.primaryLight,
-        letterSpacing: 1.2,
+        fontWeight: '600',
+        color: theme.colors.textSecondary,
+        letterSpacing: 0.6,
     },
     engineText: {
         fontSize: 10,
         fontWeight: '600',
-        color: theme.colors.cyan,
-        letterSpacing: 0.8,
+        color: theme.colors.textTertiary,
+        fontVariant: ['tabular-nums'],
     },
     statsRow: {
         flexDirection: 'row',
@@ -263,20 +256,21 @@ const styles = StyleSheet.create({
     },
     statDivider: {
         width: 1,
-        height: 28,
-        backgroundColor: 'rgba(255, 255, 255, 0.07)',
+        height: 24,
+        backgroundColor: theme.colors.borderSubtle,
     },
     statValue: {
-        fontSize: 22,
-        fontWeight: '900',
+        fontSize: 18,
+        fontWeight: '600',
         color: theme.colors.text,
-        letterSpacing: -0.5,
+        fontVariant: ['tabular-nums'],
+        letterSpacing: -0.3,
     },
     statLabel: {
         fontSize: 9,
-        fontWeight: '700',
-        color: theme.colors.textDim,
-        letterSpacing: 0.8,
+        fontWeight: '500',
+        color: theme.colors.textTertiary,
+        letterSpacing: 0.5,
         marginTop: 2,
     },
     rhiRow: {
@@ -288,28 +282,23 @@ const styles = StyleSheet.create({
     // Map
     map: {
         flex: 1,
-        backgroundColor: '#06090e',
+        backgroundColor: theme.colors.canvas,
     },
 
-    // Legend
+    // Legend Floating Pill
     legendPanel: {
         position: 'absolute',
-        bottom: 22,
-        left: 16,
-        right: 16,
+        bottom: 20,
+        left: 20,
+        right: 20,
         flexDirection: 'row',
         justifyContent: 'space-around',
-        backgroundColor: 'rgba(10, 15, 26, 0.90)',
+        backgroundColor: theme.colors.surface,
         borderWidth: 1,
-        borderColor: 'rgba(245, 158, 11, 0.25)',
-        borderRadius: 10,
-        paddingVertical: 10,
+        borderColor: theme.colors.borderSubtle,
+        borderRadius: 8,
+        paddingVertical: 9,
         paddingHorizontal: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.5,
-        shadowRadius: 10,
-        elevation: 6,
     },
     legendRow: {
         flexDirection: 'row',
@@ -317,18 +306,13 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     legendDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 4,
-        elevation: 2,
+        width: 6,
+        height: 6,
+        borderRadius: 3,
     },
     legendText: {
-        fontSize: 9,
+        fontSize: 11,
         color: theme.colors.textSecondary,
-        fontWeight: '700',
-        letterSpacing: 0.6,
+        fontWeight: '500',
     },
 });

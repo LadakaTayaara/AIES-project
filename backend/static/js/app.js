@@ -415,8 +415,7 @@ function renderReports(reports) {
     if (!reports || reports.length === 0) {
         container.innerHTML = `
             <div class="reports-empty">
-                <div class="empty-radar-icon"></div>
-                <p>NO TARGETS FOR ACTIVE FILTER</p>
+                <p>No incidents recorded for this filter</p>
             </div>
         `;
         return;
@@ -426,21 +425,19 @@ function renderReports(reports) {
         const sev = (r.severity || 'unknown').toLowerCase();
         const sevClass = getSevClass(sev);
         const dotColor = getSevColor(sev);
-        const conf = r.confidence != null ? `${(r.confidence * 100).toFixed(1)}%` : '--';
+        const conf = r.confidence != null ? `${(r.confidence * 100).toFixed(0)}%` : '--';
         const id = (r.report_id || r.id || '').substring(0, 8);
         const time = r.created_at ? timeAgo(new Date(r.created_at + 'Z')) : '';
 
         return `
             <div class="report-card" onclick='showReportDetail(${JSON.stringify(r).replace(/'/g, "&#39;")})'>
-                <div class="report-severity-dot" style="background:${dotColor};box-shadow:0 0 8px ${dotColor}"></div>
-                <div class="report-info">
-                    <div class="report-id">#${id}</div>
-                    <div class="report-meta">
-                        <span class="report-severity-tag ${sevClass}">${sev.toUpperCase()}</span>
-                        <span class="report-confidence">${conf}</span>
-                    </div>
+                <div class="report-left">
+                    <div class="report-severity-dot" style="background:${dotColor}"></div>
+                    <span class="report-id tabular-nums">#${id}</span>
+                    <span class="report-severity-tag ${sevClass}">${sev}</span>
+                    <span class="report-confidence tabular-nums">${conf}</span>
                 </div>
-                <span class="report-time">${time}</span>
+                <span class="report-time tabular-nums">${time}</span>
             </div>
         `;
     }).join('');

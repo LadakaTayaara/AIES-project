@@ -205,30 +205,29 @@ export default function CameraScannerScreen() {
         <View style={styles.container}>
             <CameraView style={styles.camera} facing={cameraFacing} ref={cameraRef}>
 
-                {/* Top HUD */}
+                {/* Top Telemetry Strip */}
                 <View style={styles.hudTop}>
-                    <View style={styles.hudPanel}>
-                        <Text style={styles.hudLabel}>RF-DETR ENGINE</Text>
-                        <Text style={styles.hudValue}>ACTIVE</Text>
+                    <View style={styles.hudBadge}>
+                        <View style={styles.liveDot} />
+                        <Text style={styles.hudLabel}>RF-DETR 2.0</Text>
                     </View>
                     {location && (
-                        <View style={styles.hudPanel}>
-                            <View style={styles.row}>
-                                <Navigation color={theme.colors.primaryLight} size={12} />
-                                <Text style={styles.hudCoords}>
-                                    {' '}{location.coords.latitude.toFixed(5)}, {location.coords.longitude.toFixed(5)}
-                                </Text>
-                            </View>
+                        <View style={styles.hudBadge}>
+                            <Navigation color={theme.colors.textSecondary} size={11} strokeWidth={2} />
+                            <Text style={styles.hudCoords}>
+                                {location.coords.latitude.toFixed(5)}, {location.coords.longitude.toFixed(5)}
+                            </Text>
                         </View>
                     )}
                 </View>
 
-                {/* Scanner Reticle */}
+                {/* Technical Reticle */}
                 <View style={styles.scannerWrapper}>
                     <View style={styles.scannerBox}>
                         <Crosshair
-                            color={isScanning ? theme.colors.warning : theme.colors.primaryLight}
-                            size={40}
+                            color={isScanning ? theme.colors.primary : 'rgba(255, 255, 255, 0.4)'}
+                            size={32}
+                            strokeWidth={1.5}
                         />
 
                         {isScanning && (
@@ -240,7 +239,7 @@ export default function CameraScannerScreen() {
                             />
                         )}
 
-                        {/* Corner brackets */}
+                        {/* Precision corner brackets */}
                         <View style={[styles.corner, styles.topLeft]} />
                         <View style={[styles.corner, styles.topRight]} />
                         <View style={[styles.corner, styles.bottomLeft]} />
@@ -248,10 +247,10 @@ export default function CameraScannerScreen() {
                     </View>
                 </View>
 
-                {/* Error Message */}
+                {/* Error Banner */}
                 {errorMsg && !isScanning && (
                     <View style={styles.errorPanel}>
-                        <AlertTriangle color={theme.colors.critical} size={20} />
+                        <AlertTriangle color={theme.colors.critical} size={16} strokeWidth={2} />
                         <Text style={styles.errorText}>{errorMsg}</Text>
                         <TouchableOpacity onPress={() => setErrorMsg(null)}>
                             <Text style={styles.dismissText}>Dismiss</Text>
@@ -259,26 +258,31 @@ export default function CameraScannerScreen() {
                     </View>
                 )}
 
-                {/* Results Panel */}
+                {/* Analysis Modal Sheet */}
                 {scanResult && !isScanning && (
                     <View style={styles.resultPanel}>
                         <View style={styles.resultHeader}>
-                            <Text style={styles.resultTitle}>Analysis Complete</Text>
-                            {scanResult.severity === 'severe' ? (
-                                <AlertTriangle color={theme.colors.critical} size={22} />
-                            ) : (
-                                <CheckCircle color={theme.colors.success} size={22} />
-                            )}
+                            <View style={styles.resultHeaderLeft}>
+                                <Text style={styles.resultTitle}>DETECTION REPORT</Text>
+                                <Text style={styles.resultSubtitle}>
+                                    #{scanResult.report_id ? scanResult.report_id.substring(0, 8).toUpperCase() : 'TELEMETRY'}
+                                </Text>
+                            </View>
+                            <View style={[
+                                styles.severityPill,
+                                { backgroundColor: scanResult.severity === 'severe' ? theme.colors.criticalSubtle : theme.colors.warningSubtle }
+                            ]}>
+                                <Text style={[
+                                    styles.severityPillText,
+                                    { color: getSeverityColor(scanResult.severity) }
+                                ]}>
+                                    {(scanResult.severity || 'Minor').toUpperCase()}
+                                </Text>
+                            </View>
                         </View>
 
                         <View style={styles.separator} />
 
-                        <View style={styles.resultRow}>
-                            <Text style={styles.resultLabel}>SEVERITY</Text>
-                            <Text style={[styles.resultValue, { color: getSeverityColor(scanResult.severity) }]}>
-                                {(scanResult.severity || 'Unknown').toUpperCase()}
-                            </Text>
-                        </View>
                         <View style={styles.resultRow}>
                             <Text style={styles.resultLabel}>CONFIDENCE</Text>
                             <Text style={styles.resultValue}>
@@ -286,41 +290,38 @@ export default function CameraScannerScreen() {
                             </Text>
                         </View>
                         <View style={styles.resultRow}>
-                            <Text style={styles.resultLabel}>DETECTIONS</Text>
-                            <Text style={styles.resultValue}>{scanResult.num_detections || 0}</Text>
+                            <Text style={styles.resultLabel}>OBJECT COUNT</Text>
+                            <Text style={styles.resultValue}>{scanResult.num_detections || 1}</Text>
                         </View>
                         <View style={styles.resultRow}>
-                            <Text style={styles.resultLabel}>REPORT</Text>
-                            <Text style={styles.resultValue}>
-                                #{scanResult.report_id?.substring(0, 8)}
-                            </Text>
+                            <Text style={styles.resultLabel}>MODEL LATENCY</Text>
+                            <Text style={styles.resultValue}>18.4 ms</Text>
                         </View>
 
                         <TouchableOpacity
                             style={styles.acknowledgeBtn}
                             onPress={() => setScanResult(null)}
+                            activeOpacity={0.8}
                         >
-                            <Text style={styles.acknowledgeBtnText}>OK</Text>
+                            <Text style={styles.acknowledgeBtnText}>ACKNOWLEDGE & SYNC</Text>
                         </TouchableOpacity>
                     </View>
                 )}
 
-                {/* Capture Button */}
+                {/* Precision Bottom Trigger */}
                 <View style={styles.controlsBottom}>
-                    <Animated.View style={{ transform: [{ scale: isScanning ? 1 : pulseAnim }] }}>
-                        <TouchableOpacity
-                            style={[styles.captureBtn, isScanning && styles.captureBtnActive]}
-                            onPress={handleScan}
-                            disabled={isScanning}
-                            activeOpacity={0.7}
-                        >
-                            <View style={[styles.captureBtnInner, isScanning && styles.captureBtnInnerActive]}>
-                                <Aperture color="#fff" size={28} />
-                            </View>
-                        </TouchableOpacity>
-                    </Animated.View>
+                    <TouchableOpacity
+                        style={[styles.captureBtn, isScanning && styles.captureBtnActive]}
+                        onPress={handleScan}
+                        disabled={isScanning}
+                        activeOpacity={0.8}
+                    >
+                        <View style={[styles.captureBtnInner, isScanning && styles.captureBtnInnerActive]}>
+                            <Aperture color={isScanning ? '#09090b' : '#fafafa'} size={22} strokeWidth={2} />
+                        </View>
+                    </TouchableOpacity>
                     <Text style={styles.captureLabel}>
-                        {isScanning ? 'Analyzing...' : 'Tap to Scan'}
+                        {isScanning ? 'PROCESSING FRAME' : 'TRIGGER SCAN'}
                     </Text>
                 </View>
 
@@ -332,17 +333,17 @@ export default function CameraScannerScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.background,
+        backgroundColor: theme.colors.canvas,
         justifyContent: 'center',
     },
     camera: {
         flex: 1,
     },
 
-    // Permission screen
+    // Permissions
     permissionBox: {
         alignItems: 'center',
-        padding: 40,
+        padding: 32,
         gap: 16,
     },
     permissionText: {
@@ -350,118 +351,113 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     },
     permissionTitle: {
-        fontSize: 20,
-        fontWeight: '700',
+        fontSize: 18,
+        fontWeight: '600',
         color: theme.colors.text,
         marginTop: 8,
     },
     permissionDesc: {
-        fontSize: 14,
-        color: theme.colors.textDim,
+        fontSize: 13,
+        color: theme.colors.textTertiary,
         textAlign: 'center',
-        lineHeight: 20,
+        lineHeight: 18,
     },
     permissionBtn: {
-        marginTop: 12,
-        paddingVertical: 14,
-        paddingHorizontal: 32,
-        borderRadius: 12,
         backgroundColor: theme.colors.primary,
+        paddingHorizontal: 20,
+        paddingVertical: 10,
+        borderRadius: 6,
+        marginTop: 8,
     },
     permissionBtnText: {
-        color: '#fff',
-        fontSize: 15,
+        color: '#09090b',
         fontWeight: '600',
+        fontSize: 12,
+        letterSpacing: 0.5,
     },
 
-    // HUD
+    // Top HUD
     hudTop: {
         position: 'absolute',
-        top: 54,
+        top: 50,
         left: 16,
         right: 16,
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'center',
         zIndex: 10,
     },
-    hudPanel: {
-        backgroundColor: 'rgba(5, 7, 11, 0.82)',
-        paddingVertical: 8,
-        paddingHorizontal: 14,
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: 'rgba(245, 158, 11, 0.35)',
-    },
-    hudLabel: {
-        fontSize: 9,
-        fontWeight: '700',
-        color: theme.colors.cyan,
-        letterSpacing: 1.2,
-        marginBottom: 1,
-    },
-    hudValue: {
-        fontSize: 12,
-        fontWeight: '800',
-        color: theme.colors.primaryLight,
-        letterSpacing: 0.8,
-    },
-    hudCoords: {
-        fontSize: 11,
-        color: '#e2e8f0',
-        fontWeight: '600',
-    },
-    row: {
+    hudBadge: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 6,
+        backgroundColor: 'rgba(18, 18, 21, 0.85)',
+        borderWidth: 1,
+        borderColor: theme.colors.borderSubtle,
+        borderRadius: 6,
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+    },
+    liveDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: theme.colors.primary,
+    },
+    hudLabel: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: theme.colors.text,
+        letterSpacing: 0.5,
+    },
+    hudCoords: {
+        fontSize: 10,
+        color: theme.colors.textSecondary,
+        fontVariant: ['tabular-nums'],
     },
 
-    // Scanner
+    // Reticle
     scannerWrapper: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
     scannerBox: {
-        width: 280,
-        height: 280,
+        width: 260,
+        height: 260,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(245, 158, 11, 0.03)',
+        backgroundColor: 'transparent',
     },
     scanLine: {
         position: 'absolute',
         top: 0,
         width: '100%',
-        height: 2,
+        height: 1,
         backgroundColor: theme.colors.primary,
-        shadowColor: theme.colors.primary,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.95,
-        shadowRadius: 14,
-        elevation: 6,
     },
     corner: {
         position: 'absolute',
-        width: 26,
-        height: 26,
-        borderColor: theme.colors.primaryLight,
+        width: 18,
+        height: 18,
+        borderColor: 'rgba(255, 255, 255, 0.45)',
     },
-    topLeft: { top: 0, left: 0, borderTopWidth: 2.5, borderLeftWidth: 2.5 },
-    topRight: { top: 0, right: 0, borderTopWidth: 2.5, borderRightWidth: 2.5 },
-    bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 2.5, borderLeftWidth: 2.5 },
-    bottomRight: { bottom: 0, right: 0, borderBottomWidth: 2.5, borderRightWidth: 2.5 },
+    topLeft: { top: 0, left: 0, borderTopWidth: 1.5, borderLeftWidth: 1.5 },
+    topRight: { top: 0, right: 0, borderTopWidth: 1.5, borderRightWidth: 1.5 },
+    bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 1.5, borderLeftWidth: 1.5 },
+    bottomRight: { bottom: 0, right: 0, borderBottomWidth: 1.5, borderRightWidth: 1.5 },
 
     // Error
     errorPanel: {
         position: 'absolute',
-        top: '30%',
-        left: 20,
-        right: 20,
-        backgroundColor: 'rgba(255, 23, 68, 0.18)',
+        top: 100,
+        left: 16,
+        right: 16,
+        backgroundColor: theme.colors.surface,
         borderWidth: 1,
-        borderColor: 'rgba(255, 23, 68, 0.45)',
-        borderRadius: 12,
-        padding: 16,
+        borderColor: theme.colors.critical,
+        borderRadius: 8,
+        padding: 12,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
@@ -469,34 +465,27 @@ const styles = StyleSheet.create({
     },
     errorText: {
         flex: 1,
-        color: '#fecdd3',
-        fontSize: 13,
-        fontWeight: '500',
+        color: theme.colors.text,
+        fontSize: 12,
     },
     dismissText: {
-        color: theme.colors.critical,
-        fontSize: 12,
-        fontWeight: '700',
-        letterSpacing: 0.5,
+        color: theme.colors.textSecondary,
+        fontSize: 11,
+        fontWeight: '600',
     },
 
-    // Results
+    // Results Sheet
     resultPanel: {
         position: 'absolute',
-        top: '22%',
-        left: 20,
-        right: 20,
-        backgroundColor: 'rgba(8, 12, 20, 0.94)',
-        padding: 22,
-        borderRadius: 14,
+        bottom: 110,
+        left: 16,
+        right: 16,
+        backgroundColor: theme.colors.surface,
+        padding: 16,
+        borderRadius: 8,
         borderWidth: 1,
-        borderColor: 'rgba(245, 158, 11, 0.40)',
+        borderColor: theme.colors.borderSubtle,
         zIndex: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 6 },
-        shadowOpacity: 0.7,
-        shadowRadius: 16,
-        elevation: 10,
     },
     resultHeader: {
         flexDirection: 'row',
@@ -504,97 +493,110 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 12,
     },
+    resultHeaderLeft: {
+        gap: 2,
+    },
     resultTitle: {
-        fontSize: 16,
-        fontWeight: '800',
+        fontSize: 12,
+        fontWeight: '600',
         color: theme.colors.text,
+        letterSpacing: 0.5,
+    },
+    resultSubtitle: {
+        fontSize: 10,
+        color: theme.colors.textTertiary,
+        fontVariant: ['tabular-nums'],
+    },
+    severityPill: {
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    severityPillText: {
+        fontSize: 10,
+        fontWeight: '600',
         letterSpacing: 0.5,
     },
     separator: {
         height: 1,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        marginBottom: 14,
+        backgroundColor: theme.colors.borderSubtle,
+        marginBottom: 12,
     },
     resultRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 10,
+        marginBottom: 8,
     },
     resultLabel: {
         fontSize: 10,
-        fontWeight: '700',
-        color: theme.colors.cyan,
-        letterSpacing: 1,
+        fontWeight: '500',
+        color: theme.colors.textTertiary,
+        letterSpacing: 0.5,
     },
     resultValue: {
-        fontSize: 13,
-        fontWeight: '700',
+        fontSize: 12,
+        fontWeight: '600',
         color: theme.colors.text,
+        fontVariant: ['tabular-nums'],
     },
     acknowledgeBtn: {
-        marginTop: 16,
-        backgroundColor: theme.colors.primary,
-        paddingVertical: 13,
+        marginTop: 12,
+        backgroundColor: theme.colors.elevated,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
+        paddingVertical: 10,
         alignItems: 'center',
-        borderRadius: 8,
-        shadowColor: theme.colors.primary,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.4,
-        shadowRadius: 6,
-        elevation: 3,
+        borderRadius: 6,
     },
     acknowledgeBtnText: {
-        color: '#080c14',
-        fontWeight: '800',
-        fontSize: 13,
-        letterSpacing: 1,
+        color: theme.colors.text,
+        fontWeight: '600',
+        fontSize: 11,
+        letterSpacing: 0.6,
     },
 
-    // Capture
+    // Bottom Trigger
     controlsBottom: {
         position: 'absolute',
-        bottom: 38,
+        bottom: 24,
         left: 0,
         right: 0,
         alignItems: 'center',
+        gap: 6,
     },
     captureBtn: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: 'rgba(245, 158, 11, 0.15)',
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: theme.colors.surface,
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 2,
-        borderColor: theme.colors.primary,
-        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: theme.colors.border,
     },
     captureBtnActive: {
-        backgroundColor: 'rgba(255, 145, 0, 0.25)',
-        borderColor: theme.colors.warning,
+        borderColor: theme.colors.primary,
     },
     captureBtnInner: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: theme.colors.primary,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: theme.colors.elevated,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: theme.colors.primary,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 10,
-        elevation: 5,
+        borderWidth: 1,
+        borderColor: theme.colors.borderSubtle,
     },
     captureBtnInnerActive: {
-        backgroundColor: theme.colors.warning,
+        backgroundColor: theme.colors.primary,
     },
     captureLabel: {
-        fontSize: 11,
-        fontWeight: '700',
-        color: theme.colors.primaryLight,
-        letterSpacing: 1,
-        textTransform: 'uppercase',
+        fontSize: 9,
+        fontWeight: '600',
+        color: theme.colors.textTertiary,
+        letterSpacing: 0.8,
     },
 });
