@@ -1,14 +1,31 @@
 import { useState, useEffect, useRef } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated, Easing, Button } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated, Easing, Platform } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Location from 'expo-location';
-import { Crosshair, Navigation, Aperture, AlertTriangle } from 'lucide-react-native';
+import { Crosshair, Navigation, Aperture, AlertTriangle, CheckCircle } from 'lucide-react-native';
 import axios from 'axios';
 import { theme } from '../themes';
+import Constants from 'expo-constants';
 
-// CHANGE THIS TO YOUR COMPUTER'S LOCAL IP ADDRESS (e.g., '192.168.x.x') 
-// Do NOT use 'localhost' or '127.0.0.1' because the Expo app runs on your phone's network
-const BACKEND_URL = 'http://192.168.1.9:8000/api/reports/submit';
+// ── Dynamic backend URL detection ───────────────────────────
+// Automatically determines the backend URL based on the Expo dev server
+function getBackendUrl() {
+    // Try to get the dev server host from Expo
+    const debuggerHost = Constants.expoConfig?.hostUri
+        || Constants.manifest?.debuggerHost
+        || Constants.manifest2?.extra?.expoGo?.debuggerHost;
+
+    if (debuggerHost) {
+        const host = debuggerHost.split(':')[0];
+        return `http://${host}:8000`;
+    }
+
+    // Fallback — change this to your PC's local IP if auto-detection fails
+    return 'http://192.168.1.9:8000';
+}
+
+const BACKEND_URL = getBackendUrl();
+const SUBMIT_URL = `${BACKEND_URL}/api/reports/submit`;
 
 const { width, height } = Dimensions.get('window');
 
@@ -18,18 +35,44 @@ export default function CameraScannerScreen() {
     const [location, setLocation] = useState(null);
     const [isScanning, setIsScanning] = useState(false);
     const [scanResult, setScanResult] = useState(null);
+    const [errorMsg, setErrorMsg] = useState(null);
 
     const cameraRef = useRef(null);
     const scanAnim = useRef(new Animated.Value(0)).current;
+    const pulseAnim = useRef(new Animated.Value(1)).current;
 
     useEffect(() => {
         (async () => {
-            const { status: locationStatus } = await Location.requestForegroundPermissionsAsync();
-            if (locationStatus === 'granted') {
-                const loc = await Location.getCurrentPositionAsync({});
-                setLocation(loc);
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status === 'granted') {
+                try {
+                    const loc = await Location.getCurrentPositionAsync({
+                        accuracy: Location.Accuracy.High,
+                    });
+                    setLocation(loc);
+                } catch (e) {
+                    console.warn('Location fetch failed:', e);
+                }
             }
         })();
+
+        // Pulse animation for capture button
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, {
+                    toValue: 1.08,
+                    duration: 1200,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulseAnim, {
+                    toValue: 1,
+                    duration: 1200,
+                    easing: Easing.inOut(Easing.ease),
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
     }, []);
 
     const startScanAnimation = () => {
@@ -47,89 +90,96 @@ export default function CameraScannerScreen() {
                     duration: 1500,
                     easing: Easing.linear,
                     useNativeDriver: true,
-                })
+                }),
             ])
         ).start();
     };
 
     const stopScanAnimation = () => {
-        Animated.loop(
-            Animated.timing(scanAnim, {
-                toValue: 0,
-                duration: 0,
-                useNativeDriver: true,
-            })
-        ).stop();
+        scanAnim.stopAnimation();
+        scanAnim.setValue(0);
     };
 
     const handleScan = async () => {
-        if (!cameraRef.current) return;
+        if (!cameraRef.current || isScanning) return;
 
         setIsScanning(true);
+        setErrorMsg(null);
+        setScanResult(null);
         startScanAnimation();
 
-        // Simulate taking photo and calling teammate's backend
         try {
             const photo = await cameraRef.current.takePictureAsync({
-                quality: 0.5,
+                quality: 0.7,
                 skipProcessing: true,
-                base64: true, // We need base64 to send the image easily 
+                base64: false,
             });
 
-            // Prepare the form data exactly how the FastAPI backend expects it
+            // Prepare FormData
             const formData = new FormData();
 
-            // Convert the photo URI to a blob file format expected by FastAPI's UploadFile
             const filename = photo.uri.split('/').pop();
             const match = /\.(\w+)$/.exec(filename);
-            const type = match ? `image/${match[1]}` : `image`;
+            const type = match ? `image/${match[1]}` : 'image/jpeg';
 
             formData.append('image', {
                 uri: photo.uri,
-                name: filename,
-                type: type
-            });
-            formData.append('lat', location ? location.coords.latitude : 0.0);
-            formData.append('lng', location ? location.coords.longitude : 0.0);
-
-            // Send to teammate's AMD ROCm pipeline
-            console.log("Transmitting to: ", BACKEND_URL);
-            const response = await axios.post(BACKEND_URL, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
+                name: filename || 'photo.jpg',
+                type: type,
             });
 
-            console.log("Response from AMD Server:", response.data);
+            formData.append('lat', location ? location.coords.latitude.toString() : '0.0');
+            formData.append('lng', location ? location.coords.longitude.toString() : '0.0');
 
-            setIsScanning(false);
-            stopScanAnimation();
+            console.log(`Submitting to: ${SUBMIT_URL}`);
 
-            // Set the result based on the actual Model returned payload
+            const response = await axios.post(SUBMIT_URL, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+                timeout: 30000,
+            });
+
+            console.log('Detection result:', response.data);
+
             setScanResult({
-                status: response.data.status,
                 severity: response.data.severity,
                 confidence: response.data.confidence,
                 report_id: response.data.report_id,
+                num_detections: response.data.num_detections,
+                status: response.data.status,
             });
 
         } catch (error) {
-            console.error("Scanning failed", error);
+            console.error('Scan failed:', error);
+            const msg = error.response?.data?.detail
+                || error.message
+                || 'Connection failed';
+            setErrorMsg(msg);
+        } finally {
             setIsScanning(false);
             stopScanAnimation();
         }
     };
 
+    // Permission handling
     if (!permission) {
-        return <View style={styles.container}><Text style={styles.text}>Requesting permissions...</Text></View>;
+        return (
+            <View style={styles.container}>
+                <Text style={styles.permissionText}>Requesting camera access...</Text>
+            </View>
+        );
     }
+
     if (!permission.granted) {
         return (
             <View style={styles.container}>
-                <Text style={styles.text}>We need permission to show the camera</Text>
-                <View style={{ padding: 40 }}>
-                    <TouchableOpacity style={styles.captureBtnActive} onPress={requestPermission}>
-                        <Text style={[styles.text, { marginTop: 0 }]}>GRANT PERMISSION</Text>
+                <View style={styles.permissionBox}>
+                    <Aperture color={theme.colors.primary} size={48} />
+                    <Text style={styles.permissionTitle}>Camera Access Required</Text>
+                    <Text style={styles.permissionDesc}>
+                        We need camera access to scan and detect potholes on the road.
+                    </Text>
+                    <TouchableOpacity style={styles.permissionBtn} onPress={requestPermission}>
+                        <Text style={styles.permissionBtnText}>Grant Permission</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -138,8 +188,18 @@ export default function CameraScannerScreen() {
 
     const scanLineTranslateY = scanAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [0, 300] // Size of the scanner box
+        outputRange: [0, 280],
     });
+
+    const getSeverityColor = (sev) => {
+        if (!sev) return theme.colors.textDim;
+        switch (sev.toLowerCase()) {
+            case 'severe': return theme.colors.critical;
+            case 'moderate': return theme.colors.warning;
+            case 'minor': return theme.colors.success;
+            default: return theme.colors.textDim;
+        }
+    };
 
     return (
         <View style={styles.container}>
@@ -148,33 +208,39 @@ export default function CameraScannerScreen() {
                 {/* Top HUD */}
                 <View style={styles.hudTop}>
                     <View style={styles.hudPanel}>
-                        <Text style={styles.hudTextTitle}>SYSTEM STATUS</Text>
-                        <Text style={styles.hudTextValue}>AMD AI ENGINE ACTIVE</Text>
+                        <Text style={styles.hudLabel}>RF-DETR ENGINE</Text>
+                        <Text style={styles.hudValue}>ACTIVE</Text>
                     </View>
                     {location && (
                         <View style={styles.hudPanel}>
                             <View style={styles.row}>
-                                <Navigation color={theme.colors.primary} size={14} />
-                                <Text style={styles.hudTextValuesml}>  {location.coords.latitude.toFixed(6)}, {location.coords.longitude.toFixed(6)}</Text>
+                                <Navigation color={theme.colors.primaryLight} size={12} />
+                                <Text style={styles.hudCoords}>
+                                    {' '}{location.coords.latitude.toFixed(5)}, {location.coords.longitude.toFixed(5)}
+                                </Text>
                             </View>
                         </View>
                     )}
                 </View>
 
-                {/* Center Reticle / Scanner Overlay */}
+                {/* Scanner Reticle */}
                 <View style={styles.scannerWrapper}>
                     <View style={styles.scannerBox}>
-                        <Crosshair color={isScanning ? theme.colors.warning : theme.colors.primary} size={48} />
+                        <Crosshair
+                            color={isScanning ? theme.colors.warning : theme.colors.primaryLight}
+                            size={40}
+                        />
 
                         {isScanning && (
-                            <Animated.View style={[
-                                styles.scanLine,
-                                { transform: [{ translateY: scanLineTranslateY }] }
-                            ]}
+                            <Animated.View
+                                style={[
+                                    styles.scanLine,
+                                    { transform: [{ translateY: scanLineTranslateY }] },
+                                ]}
                             />
                         )}
 
-                        {/* Corner Brackets for Cyberpunk Feel */}
+                        {/* Corner brackets */}
                         <View style={[styles.corner, styles.topLeft]} />
                         <View style={[styles.corner, styles.topRight]} />
                         <View style={[styles.corner, styles.bottomLeft]} />
@@ -182,58 +248,79 @@ export default function CameraScannerScreen() {
                     </View>
                 </View>
 
-                {/* Results Overlay (Glassmorphism Panel) */}
-                {scanResult && !isScanning && (
-                    <View style={styles.resultPanel}>
-                        <View style={styles.rowBetween}>
-                            <Text style={styles.resultTitle}>ANALYSIS COMPLETE</Text>
-                            {scanResult.severity === 'Critical' ? (
-                                <AlertTriangle color={theme.colors.critical} size={24} />
-                            ) : (
-                                <Aperture color={theme.colors.success} size={24} />
-                            )}
-                        </View>
-                        <View style={styles.separator} />
-                        <View style={styles.rowBetween}>
-                            <Text style={styles.resultLabel}>SEVERITY:</Text>
-                            <Text style={[
-                                styles.resultValue,
-                                {
-                                    color: scanResult.severity === 'Critical' ? theme.colors.critical :
-                                        scanResult.severity === 'Medium' ? theme.colors.warning : theme.colors.success
-                                }
-                            ]}>{scanResult.severity.toUpperCase()}</Text>
-                        </View>
-                        <View style={styles.rowBetween}>
-                            <Text style={styles.resultLabel}>DETECTED:</Text>
-                            <Text style={styles.resultValue}>REPORT LOGGED (#{scanResult.report_id?.substring(0, 6)})</Text>
-                        </View>
-                        <View style={styles.rowBetween}>
-                            <Text style={styles.resultLabel}>CONFIDENCE:</Text>
-                            <Text style={styles.resultValue}>{(scanResult.confidence * 100).toFixed(1)}%</Text>
-                        </View>
-                        <TouchableOpacity
-                            style={styles.closeBtn}
-                            onPress={() => setScanResult(null)}
-                        >
-                            <Text style={styles.closeBtnText}>ACKNOWLEDGE</Text>
+                {/* Error Message */}
+                {errorMsg && !isScanning && (
+                    <View style={styles.errorPanel}>
+                        <AlertTriangle color={theme.colors.critical} size={20} />
+                        <Text style={styles.errorText}>{errorMsg}</Text>
+                        <TouchableOpacity onPress={() => setErrorMsg(null)}>
+                            <Text style={styles.dismissText}>Dismiss</Text>
                         </TouchableOpacity>
                     </View>
                 )}
 
-                {/* Bottom Controls */}
-                <View style={styles.controlsBottom}>
-                    <TouchableOpacity
-                        style={[styles.captureBtn, isScanning && styles.captureBtnActive]}
-                        onPress={handleScan}
-                        disabled={isScanning}
-                    >
-                        <View style={styles.captureBtnInner}>
-                            <Aperture color={theme.colors.background} size={32} />
+                {/* Results Panel */}
+                {scanResult && !isScanning && (
+                    <View style={styles.resultPanel}>
+                        <View style={styles.resultHeader}>
+                            <Text style={styles.resultTitle}>Analysis Complete</Text>
+                            {scanResult.severity === 'severe' ? (
+                                <AlertTriangle color={theme.colors.critical} size={22} />
+                            ) : (
+                                <CheckCircle color={theme.colors.success} size={22} />
+                            )}
                         </View>
-                    </TouchableOpacity>
-                    <Text style={styles.scanText}>
-                        {isScanning ? 'TRANSMITTING TO NODE...' : 'INITIATE TACTICAL SCAN'}
+
+                        <View style={styles.separator} />
+
+                        <View style={styles.resultRow}>
+                            <Text style={styles.resultLabel}>SEVERITY</Text>
+                            <Text style={[styles.resultValue, { color: getSeverityColor(scanResult.severity) }]}>
+                                {(scanResult.severity || 'Unknown').toUpperCase()}
+                            </Text>
+                        </View>
+                        <View style={styles.resultRow}>
+                            <Text style={styles.resultLabel}>CONFIDENCE</Text>
+                            <Text style={styles.resultValue}>
+                                {scanResult.confidence ? `${(scanResult.confidence * 100).toFixed(1)}%` : '--'}
+                            </Text>
+                        </View>
+                        <View style={styles.resultRow}>
+                            <Text style={styles.resultLabel}>DETECTIONS</Text>
+                            <Text style={styles.resultValue}>{scanResult.num_detections || 0}</Text>
+                        </View>
+                        <View style={styles.resultRow}>
+                            <Text style={styles.resultLabel}>REPORT</Text>
+                            <Text style={styles.resultValue}>
+                                #{scanResult.report_id?.substring(0, 8)}
+                            </Text>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.acknowledgeBtn}
+                            onPress={() => setScanResult(null)}
+                        >
+                            <Text style={styles.acknowledgeBtnText}>OK</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {/* Capture Button */}
+                <View style={styles.controlsBottom}>
+                    <Animated.View style={{ transform: [{ scale: isScanning ? 1 : pulseAnim }] }}>
+                        <TouchableOpacity
+                            style={[styles.captureBtn, isScanning && styles.captureBtnActive]}
+                            onPress={handleScan}
+                            disabled={isScanning}
+                            activeOpacity={0.7}
+                        >
+                            <View style={[styles.captureBtnInner, isScanning && styles.captureBtnInnerActive]}>
+                                <Aperture color="#fff" size={28} />
+                            </View>
+                        </TouchableOpacity>
+                    </Animated.View>
+                    <Text style={styles.captureLabel}>
+                        {isScanning ? 'Analyzing...' : 'Tap to Scan'}
                     </Text>
                 </View>
 
@@ -246,63 +333,100 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: theme.colors.background,
+        justifyContent: 'center',
     },
     camera: {
         flex: 1,
     },
-    text: {
-        color: theme.colors.text,
-        textAlign: 'center',
-        marginTop: 100,
+
+    // Permission screen
+    permissionBox: {
+        alignItems: 'center',
+        padding: 40,
+        gap: 16,
     },
+    permissionText: {
+        color: theme.colors.textSecondary,
+        textAlign: 'center',
+    },
+    permissionTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: theme.colors.text,
+        marginTop: 8,
+    },
+    permissionDesc: {
+        fontSize: 14,
+        color: theme.colors.textDim,
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    permissionBtn: {
+        marginTop: 12,
+        paddingVertical: 14,
+        paddingHorizontal: 32,
+        borderRadius: 12,
+        backgroundColor: theme.colors.primary,
+    },
+    permissionBtnText: {
+        color: '#fff',
+        fontSize: 15,
+        fontWeight: '600',
+    },
+
+    // HUD
     hudTop: {
         position: 'absolute',
-        top: 50,
-        left: 20,
-        right: 20,
+        top: 54,
+        left: 16,
+        right: 16,
         flexDirection: 'row',
         justifyContent: 'space-between',
         zIndex: 10,
     },
     hudPanel: {
-        backgroundColor: 'rgba(10, 10, 10, 0.65)',
-        padding: 10,
-        borderRadius: 4,
+        backgroundColor: 'rgba(5, 7, 11, 0.82)',
+        paddingVertical: 8,
+        paddingHorizontal: 14,
+        borderRadius: 8,
         borderWidth: 1,
-        borderColor: 'rgba(0, 240, 255, 0.3)',
+        borderColor: 'rgba(245, 158, 11, 0.35)',
     },
-    hudTextTitle: {
-        ...theme.typography.subheading,
-        fontSize: 10,
-        color: theme.colors.textDim,
-        marginBottom: 2,
+    hudLabel: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: theme.colors.cyan,
+        letterSpacing: 1.2,
+        marginBottom: 1,
     },
-    hudTextValue: {
-        ...theme.typography.body,
-        color: theme.colors.primary,
-        fontWeight: 'bold',
+    hudValue: {
         fontSize: 12,
+        fontWeight: '800',
+        color: theme.colors.primaryLight,
+        letterSpacing: 0.8,
     },
-    hudTextValuesml: {
-        ...theme.typography.body,
-        color: theme.colors.text,
-        fontSize: 12,
+    hudCoords: {
+        fontSize: 11,
+        color: '#e2e8f0',
+        fontWeight: '600',
     },
     row: {
         flexDirection: 'row',
         alignItems: 'center',
     },
+
+    // Scanner
     scannerWrapper: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
     scannerBox: {
-        width: 300,
-        height: 300,
+        width: 280,
+        height: 280,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: 'rgba(0,240,255,0.05)',
+        backgroundColor: 'rgba(245, 158, 11, 0.03)',
     },
     scanLine: {
         position: 'absolute',
@@ -312,82 +436,125 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.primary,
         shadowColor: theme.colors.primary,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 10,
-        elevation: 5,
+        shadowOpacity: 0.95,
+        shadowRadius: 14,
+        elevation: 6,
     },
     corner: {
         position: 'absolute',
-        width: 30,
-        height: 30,
-        borderColor: theme.colors.primary,
+        width: 26,
+        height: 26,
+        borderColor: theme.colors.primaryLight,
     },
-    topLeft: { top: 0, left: 0, borderTopWidth: 2, borderLeftWidth: 2 },
-    topRight: { top: 0, right: 0, borderTopWidth: 2, borderRightWidth: 2 },
-    bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 2, borderLeftWidth: 2 },
-    bottomRight: { bottom: 0, right: 0, borderBottomWidth: 2, borderRightWidth: 2 },
+    topLeft: { top: 0, left: 0, borderTopWidth: 2.5, borderLeftWidth: 2.5 },
+    topRight: { top: 0, right: 0, borderTopWidth: 2.5, borderRightWidth: 2.5 },
+    bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 2.5, borderLeftWidth: 2.5 },
+    bottomRight: { bottom: 0, right: 0, borderBottomWidth: 2.5, borderRightWidth: 2.5 },
 
+    // Error
+    errorPanel: {
+        position: 'absolute',
+        top: '30%',
+        left: 20,
+        right: 20,
+        backgroundColor: 'rgba(255, 23, 68, 0.18)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 23, 68, 0.45)',
+        borderRadius: 12,
+        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        zIndex: 20,
+    },
+    errorText: {
+        flex: 1,
+        color: '#fecdd3',
+        fontSize: 13,
+        fontWeight: '500',
+    },
+    dismissText: {
+        color: theme.colors.critical,
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+    },
+
+    // Results
     resultPanel: {
         position: 'absolute',
-        top: '25%',
-        left: 40,
-        right: 40,
-        backgroundColor: 'rgba(10, 10, 10, 0.85)',
-        padding: 20,
-        borderRadius: 8,
+        top: '22%',
+        left: 20,
+        right: 20,
+        backgroundColor: 'rgba(8, 12, 20, 0.94)',
+        padding: 22,
+        borderRadius: 14,
         borderWidth: 1,
-        borderColor: theme.colors.primary,
+        borderColor: 'rgba(245, 158, 11, 0.40)',
         zIndex: 20,
-        shadowColor: theme.colors.primary,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.3,
-        shadowRadius: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.7,
+        shadowRadius: 16,
+        elevation: 10,
     },
-    rowBetween: {
+    resultHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    resultTitle: {
+        fontSize: 16,
+        fontWeight: '800',
+        color: theme.colors.text,
+        letterSpacing: 0.5,
+    },
+    separator: {
+        height: 1,
+        backgroundColor: 'rgba(255,255,255,0.08)',
+        marginBottom: 14,
+    },
+    resultRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginBottom: 10,
     },
-    separator: {
-        height: 1,
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        marginBottom: 15,
-    },
-    resultTitle: {
-        ...theme.typography.heading,
-        fontSize: 18,
-        color: theme.colors.text,
-    },
     resultLabel: {
-        ...theme.typography.body,
-        color: theme.colors.textDim,
-        fontSize: 12,
+        fontSize: 10,
+        fontWeight: '700',
+        color: theme.colors.cyan,
         letterSpacing: 1,
     },
     resultValue: {
-        ...theme.typography.body,
-        fontWeight: 'bold',
-        fontSize: 14,
-        letterSpacing: 1,
+        fontSize: 13,
+        fontWeight: '700',
+        color: theme.colors.text,
     },
-    closeBtn: {
-        marginTop: 20,
+    acknowledgeBtn: {
+        marginTop: 16,
         backgroundColor: theme.colors.primary,
-        paddingVertical: 12,
+        paddingVertical: 13,
         alignItems: 'center',
-        borderRadius: 4,
+        borderRadius: 8,
+        shadowColor: theme.colors.primary,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.4,
+        shadowRadius: 6,
+        elevation: 3,
     },
-    closeBtnText: {
-        ...theme.typography.body,
-        color: theme.colors.background,
-        fontWeight: 'bold',
+    acknowledgeBtnText: {
+        color: '#080c14',
+        fontWeight: '800',
+        fontSize: 13,
         letterSpacing: 1,
     },
 
+    // Capture
     controlsBottom: {
         position: 'absolute',
-        bottom: 50,
+        bottom: 38,
         left: 0,
         right: 0,
         alignItems: 'center',
@@ -396,15 +563,15 @@ const styles = StyleSheet.create({
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: 'rgba(0, 240, 255, 0.2)',
+        backgroundColor: 'rgba(245, 158, 11, 0.15)',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 2,
         borderColor: theme.colors.primary,
-        marginBottom: 15,
+        marginBottom: 8,
     },
     captureBtnActive: {
-        backgroundColor: 'rgba(255, 179, 0, 0.3)',
+        backgroundColor: 'rgba(255, 145, 0, 0.25)',
         borderColor: theme.colors.warning,
     },
     captureBtnInner: {
@@ -414,10 +581,20 @@ const styles = StyleSheet.create({
         backgroundColor: theme.colors.primary,
         justifyContent: 'center',
         alignItems: 'center',
+        shadowColor: theme.colors.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 10,
+        elevation: 5,
     },
-    scanText: {
-        ...theme.typography.subheading,
-        fontSize: 12,
-        color: theme.colors.text,
-    }
+    captureBtnInnerActive: {
+        backgroundColor: theme.colors.warning,
+    },
+    captureLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: theme.colors.primaryLight,
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
 });

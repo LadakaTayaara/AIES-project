@@ -1,219 +1,201 @@
-import { useState, useEffect } from 'react';
-import { StyleSheet, View, Text } from 'react-native';
-import MapView, { Marker, Circle } from 'react-native-maps';
+import { useState, useEffect, useMemo } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { WebView } from 'react-native-webview';
 import axios from 'axios';
 import { theme } from '../themes';
-import { ShieldAlert, AlertTriangle, AlertCircle } from 'lucide-react-native';
+import { Activity } from 'lucide-react-native';
+import Constants from 'expo-constants';
 
-const BACKEND_URL = 'http://192.168.1.9:8000/api/heatmap/data';
+// ── Dynamic backend URL ──────────────────────────────────
+function getBackendUrl() {
+    const debuggerHost = Constants.expoConfig?.hostUri
+        || Constants.manifest?.debuggerHost
+        || Constants.manifest2?.extra?.expoGo?.debuggerHost;
 
-// Standard dark theme Google Maps style
-// Realistically, we'd use Mapbox, but react-native-maps with custom styling is faster for prototype
-const mapDarkMode = [
-    {
-        "elementType": "geometry",
-        "stylers": [{ "color": "#212121" }]
-    },
-    {
-        "elementType": "labels.icon",
-        "stylers": [{ "visibility": "off" }]
-    },
-    {
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#757575" }]
-    },
-    {
-        "elementType": "labels.text.stroke",
-        "stylers": [{ "color": "#212121" }]
-    },
-    {
-        "featureType": "administrative",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#757575" }]
-    },
-    {
-        "featureType": "administrative.country",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#9e9e9e" }]
-    },
-    {
-        "featureType": "administrative.locality",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#bdbdbd" }]
-    },
-    {
-        "featureType": "poi",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#757575" }]
-    },
-    {
-        "featureType": "poi.park",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#181818" }]
-    },
-    {
-        "featureType": "poi.park",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#616161" }]
-    },
-    {
-        "featureType": "poi.park",
-        "elementType": "labels.text.stroke",
-        "stylers": [{ "color": "#1b1b1b" }]
-    },
-    {
-        "featureType": "road",
-        "elementType": "geometry.fill",
-        "stylers": [{ "color": "#2c2c2c" }]
-    },
-    {
-        "featureType": "road",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#8a8a8a" }]
-    },
-    {
-        "featureType": "road.arterial",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#373737" }]
-    },
-    {
-        "featureType": "road.highway",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#3c3c3c" }]
-    },
-    {
-        "featureType": "road.highway.controlled_access",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#4e4e4e" }]
-    },
-    {
-        "featureType": "road.local",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#616161" }]
-    },
-    {
-        "featureType": "transit",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#757575" }]
-    },
-    {
-        "featureType": "water",
-        "elementType": "geometry",
-        "stylers": [{ "color": "#000000" }]
-    },
-    {
-        "featureType": "water",
-        "elementType": "labels.text.fill",
-        "stylers": [{ "color": "#3d3d3d" }]
+    if (debuggerHost) {
+        const host = debuggerHost.split(':')[0];
+        return `http://${host}:8000`;
     }
-];
+    return 'http://192.168.1.9:8000';
+}
 
-// Initial placeholder region for Pune, India (matching backend hints)
+const BACKEND_URL = getBackendUrl();
+
 export default function DashboardScreen() {
     const [potholes, setPotholes] = useState([]);
-    const [healthIndex, setHealthIndex] = useState(72); // Default
+    const [summary, setSummary] = useState(null);
+
+    const fetchData = async () => {
+        try {
+            // Fetch heatmap data
+            const heatmapRes = await axios.get(`${BACKEND_URL}/api/heatmap/data`);
+            if (heatmapRes.data?.hotspots) {
+                setPotholes(heatmapRes.data.hotspots);
+            }
+
+            // Fetch dashboard summary
+            const summaryRes = await axios.get(`${BACKEND_URL}/api/dashboard/summary`);
+            if (summaryRes.data) {
+                setSummary(summaryRes.data);
+            }
+        } catch (error) {
+            console.error('Dashboard data fetch failed:', error);
+        }
+    };
 
     useEffect(() => {
-        const fetchHeatmapData = async () => {
-            try {
-                // We'll hit the newly discovered endpoint to get live hotspot GPS coordinates
-                const response = await axios.get(BACKEND_URL);
-                if (response.data && response.data.hotspots) {
-                    setPotholes(response.data.hotspots);
-                }
-            } catch (error) {
-                console.error("Failed to fetch live heatmap data. Using fallback data.", error);
-
-                // Fallback dummy data if backend endpoint isn't wired to DB yet
-                setPotholes([
-                    { id: '1', coordinate: { latitude: 18.5204, longitude: 73.8567 }, severity: 'Critical' }, // Pune
-                    { id: '2', coordinate: { latitude: 18.5224, longitude: 73.8587 }, severity: 'Medium' },
-                    { id: '3', coordinate: { latitude: 18.5184, longitude: 73.8547 }, severity: 'Low' },
-                ]);
-            }
-        };
-
-        fetchHeatmapData();
+        fetchData();
+        const interval = setInterval(fetchData, 30000);
+        return () => clearInterval(interval);
     }, []);
 
-    const initialRegion = {
-        latitude: 18.5204, // Centered on Pune region
-        longitude: 73.8567,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-    };
+    const rhi = summary?.road_health_index ?? '--';
+    const totalReports = summary?.total_reports ?? 0;
+    const severeCount = summary?.severity_breakdown?.severe ?? 0;
+    const moderateCount = summary?.severity_breakdown?.moderate ?? 0;
 
-    const getMarkerColor = (severity) => {
-        switch (severity) {
-            case 'Critical': return theme.colors.critical;
-            case 'Medium': return theme.colors.warning;
-            case 'Low': return theme.colors.success;
-            default: return theme.colors.primary;
-        }
-    };
+    const rhiColor = typeof rhi === 'number'
+        ? (rhi >= 70 ? theme.colors.success : rhi >= 40 ? theme.colors.warning : theme.colors.critical)
+        : theme.colors.cyan;
 
-    const getMarkerIcon = (severity, color) => {
-        switch (severity) {
-            case 'Critical': return <ShieldAlert color={color} size={24} />;
-            case 'Medium': return <AlertTriangle color={color} size={20} />;
-            case 'Low': return <AlertCircle color={color} size={16} />;
-            default: return <AlertCircle color={color} size={16} />;
+    // Tactical Leaflet HTML (100% Free Esri Dark Canvas, No Google API key required)
+    const leafletHtml = useMemo(() => `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html, #map { width: 100%; height: 100%; background: #06090e; overflow: hidden; }
+        .custom-marker {
+            display: flex; align-items: center; justify-content: center;
+            width: 26px; height: 26px; border-radius: 50%;
+            background: #06090e; border: 2px solid; font-size: 11px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.85);
         }
-    }
+        .marker-severe { border-color: #ff1744; color: #ff1744; box-shadow: 0 0 14px rgba(255,23,68,0.7); }
+        .marker-moderate { border-color: #ff9100; color: #ff9100; box-shadow: 0 0 12px rgba(255,145,0,0.6); }
+        .marker-minor { border-color: #00e676; color: #00e676; box-shadow: 0 0 10px rgba(0,230,118,0.5); }
+        .leaflet-control-attribution { display: none !important; }
+        .leaflet-popup-content-wrapper {
+            background: #0e1422 !important; color: #f8fafc !important;
+            border: 1px solid rgba(245, 158, 11, 0.4) !important;
+            border-radius: 8px !important; font-family: monospace !important;
+            font-size: 11px !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.8) !important;
+        }
+        .leaflet-popup-tip { background: #0e1422 !important; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        var map = L.map('map', { zoomControl: false }).setView([18.5204, 73.8567], 13);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19, maxNativeZoom: 16
+        }).addTo(map);
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 19, maxNativeZoom: 16
+        }).addTo(map);
+
+        var data = ${JSON.stringify(potholes)};
+        var bounds = [];
+        data.forEach(function(p) {
+            var lat = p.coordinate ? p.coordinate.latitude : p.lat;
+            var lng = p.coordinate ? p.coordinate.longitude : p.lng;
+            if (!lat || !lng) return;
+            bounds.push([lat, lng]);
+
+            var sev = (p.severity || 'unknown').toLowerCase();
+            var cls = 'marker-minor';
+            var em = '◈';
+            var col = '#00e676';
+            var rad = 90;
+            if (sev === 'critical' || sev === 'severe') { cls = 'marker-severe'; em = '⚠'; col = '#ff1744'; rad = 140; }
+            else if (sev === 'medium' || sev === 'moderate') { cls = 'marker-moderate'; em = '▲'; col = '#ff9100'; rad = 110; }
+
+            L.circle([lat, lng], { radius: rad, color: col, weight: 1.5, opacity: 0.6, fillColor: col, fillOpacity: 0.18 }).addTo(map);
+            var icon = L.divIcon({ className: '', html: '<div class="custom-marker ' + cls + '">' + em + '</div>', iconSize: [26, 26], iconAnchor: [13, 13] });
+            L.marker([lat, lng], { icon: icon }).bindPopup('<b style="color:' + col + '">' + sev.toUpperCase() + ' HAZARD</b><br>LAT: ' + lat.toFixed(4) + '<br>LNG: ' + lng.toFixed(4)).addTo(map);
+        });
+
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [40, 40] });
+        }
+    </script>
+</body>
+</html>
+    `, [potholes]);
 
     return (
         <View style={styles.container}>
+            {/* Tactical HUD Header */}
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>ROAD HEALTH INDEX</Text>
-                <View style={styles.scoreContainer}>
-                    <Text style={styles.scoreText}>{healthIndex}</Text>
-                    <Text style={styles.scoreSub}>/ 100</Text>
+                <View style={styles.systemBar}>
+                    <View style={styles.liveIndicator}>
+                        <View style={styles.liveDot} />
+                        <Text style={styles.liveText}>RADAR TELEMETRY // ONLINE</Text>
+                    </View>
+                    <Text style={styles.engineText}>RF-DETR 2.0</Text>
                 </View>
-            </View>
 
-            <MapView
-                style={styles.map}
-                customMapStyle={mapDarkMode}
-                initialRegion={initialRegion}
-                showsUserLocation={true}
-            >
-                {potholes.map((pothole, index) => {
-                    const color = getMarkerColor(pothole.severity);
-                    return (
-                        <View key={pothole.id || index.toString()}>
-                            <Marker coordinate={pothole.coordinate}>
-                                <View style={[styles.markerContainer, { borderColor: color }]}>
-                                    {getMarkerIcon(pothole.severity, color)}
-                                </View>
-                            </Marker>
-                            <Circle
-                                center={pothole.coordinate}
-                                radius={pothole.severity === 'Critical' ? 150 : 80}
-                                fillColor={color + '33'} // Add 33 for 20% opacity hex
-                                strokeColor={color + '80'} // Add 80 for 50% opacity hex
-                                strokeWidth={1}
-                            />
+                <View style={styles.statsRow}>
+                    <View style={styles.statBox}>
+                        <Text style={styles.statValue}>{totalReports}</Text>
+                        <Text style={styles.statLabel}>TARGETS</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statBox}>
+                        <Text style={[styles.statValue, { color: theme.colors.critical }]}>{severeCount}</Text>
+                        <Text style={[styles.statLabel, { color: theme.colors.critical }]}>CRITICAL</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statBox}>
+                        <Text style={[styles.statValue, { color: theme.colors.warning }]}>{moderateCount}</Text>
+                        <Text style={[styles.statLabel, { color: theme.colors.warning }]}>MODERATE</Text>
+                    </View>
+                    <View style={styles.statDivider} />
+                    <View style={styles.statBox}>
+                        <View style={styles.rhiRow}>
+                            <Activity color={rhiColor} size={15} />
+                            <Text style={[styles.statValue, { color: rhiColor }]}>
+                                {typeof rhi === 'number' ? rhi.toFixed(0) : '--'}
+                            </Text>
                         </View>
-                    );
-                })}
-            </MapView>
-
-            <View style={styles.legendPanel}>
-                <Text style={styles.legendTitle}>URBAN PULSE STATUS</Text>
-                <View style={styles.legendRow}>
-                    <View style={[styles.dot, { backgroundColor: theme.colors.critical }]} />
-                    <Text style={styles.legendText}>CRITICAL DEGRADATION</Text>
-                </View>
-                <View style={styles.legendRow}>
-                    <View style={[styles.dot, { backgroundColor: theme.colors.warning }]} />
-                    <Text style={styles.legendText}>MODERATE WEAR</Text>
-                </View>
-                <View style={styles.legendRow}>
-                    <View style={[styles.dot, { backgroundColor: theme.colors.success }]} />
-                    <Text style={styles.legendText}>VERIFIED CLEAR</Text>
+                        <Text style={[styles.statLabel, { color: theme.colors.cyan }]}>HEALTH IDX</Text>
+                    </View>
                 </View>
             </View>
 
+            {/* Tactical Map Container */}
+            <View style={styles.map}>
+                <WebView
+                    originWhitelist={['*']}
+                    source={{ html: leafletHtml }}
+                    style={{ flex: 1, backgroundColor: '#06090e' }}
+                    javaScriptEnabled={true}
+                    domStorageEnabled={true}
+                    scalesPageToFit={false}
+                />
+            </View>
+
+            {/* Tactical Legend HUD */}
+            <View style={styles.legendPanel}>
+                <View style={styles.legendRow}>
+                    <View style={[styles.legendDot, { backgroundColor: theme.colors.critical, shadowColor: theme.colors.critical }]} />
+                    <Text style={styles.legendText}>CRITICAL HAZARD</Text>
+                </View>
+                <View style={styles.legendRow}>
+                    <View style={[styles.legendDot, { backgroundColor: theme.colors.warning, shadowColor: theme.colors.warning }]} />
+                    <Text style={styles.legendText}>MODERATE</Text>
+                </View>
+                <View style={styles.legendRow}>
+                    <View style={[styles.legendDot, { backgroundColor: theme.colors.success, shadowColor: theme.colors.success }]} />
+                    <Text style={styles.legendText}>MONITORED</Text>
+                </View>
+            </View>
         </View>
     );
 }
@@ -223,79 +205,130 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: theme.colors.background,
     },
+
+    // Header
     header: {
-        paddingTop: 60,
-        paddingBottom: 20,
-        paddingHorizontal: 20,
-        backgroundColor: theme.colors.background,
+        paddingTop: 52,
+        paddingBottom: 14,
+        paddingHorizontal: 16,
+        backgroundColor: theme.colors.surface,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(245, 158, 11, 0.20)',
+    },
+    systemBar: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-end',
+        alignItems: 'center',
+        marginBottom: 10,
+        paddingBottom: 8,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0, 240, 255, 0.2)',
+        borderBottomColor: 'rgba(255, 255, 255, 0.05)',
     },
-    headerTitle: {
-        ...theme.typography.subheading,
-        color: theme.colors.textDim,
-    },
-    scoreContainer: {
+    liveIndicator: {
         flexDirection: 'row',
-        alignItems: 'baseline',
+        alignItems: 'center',
+        gap: 6,
     },
-    scoreText: {
-        ...theme.typography.stats,
-        color: theme.colors.warning, // 72 is moderate
+    liveDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: theme.colors.primary,
+        shadowColor: theme.colors.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.9,
+        shadowRadius: 6,
+        elevation: 3,
     },
-    scoreSub: {
-        ...theme.typography.body,
-        color: theme.colors.textDim,
-        marginLeft: 4,
+    liveText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: theme.colors.primaryLight,
+        letterSpacing: 1.2,
     },
-    map: {
+    engineText: {
+        fontSize: 10,
+        fontWeight: '600',
+        color: theme.colors.cyan,
+        letterSpacing: 0.8,
+    },
+    statsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+    },
+    statBox: {
+        alignItems: 'center',
         flex: 1,
     },
-    markerContainer: {
-        backgroundColor: 'rgba(10, 10, 10, 0.9)',
-        borderRadius: 20,
-        padding: 4,
-        borderWidth: 1,
+    statDivider: {
+        width: 1,
+        height: 28,
+        backgroundColor: 'rgba(255, 255, 255, 0.07)',
     },
+    statValue: {
+        fontSize: 22,
+        fontWeight: '900',
+        color: theme.colors.text,
+        letterSpacing: -0.5,
+    },
+    statLabel: {
+        fontSize: 9,
+        fontWeight: '700',
+        color: theme.colors.textDim,
+        letterSpacing: 0.8,
+        marginTop: 2,
+    },
+    rhiRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+
+    // Map
+    map: {
+        flex: 1,
+        backgroundColor: '#06090e',
+    },
+
+    // Legend
     legendPanel: {
         position: 'absolute',
-        bottom: 30,
-        left: 20,
-        right: 20,
-        backgroundColor: theme.effects.glassmorphism.backgroundColor,
-        borderWidth: theme.effects.glassmorphism.borderWidth,
-        borderColor: theme.effects.glassmorphism.borderColor,
-        borderRadius: theme.effects.glassmorphism.borderRadius,
-        padding: 15,
-    },
-    legendTitle: {
-        ...theme.typography.body,
-        color: theme.colors.primary,
-        fontWeight: 'bold',
-        marginBottom: 10,
-        letterSpacing: 1,
-        fontSize: 12,
+        bottom: 22,
+        left: 16,
+        right: 16,
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        backgroundColor: 'rgba(10, 15, 26, 0.90)',
+        borderWidth: 1,
+        borderColor: 'rgba(245, 158, 11, 0.25)',
+        borderRadius: 10,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+        elevation: 6,
     },
     legendRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 6,
+        gap: 6,
     },
-    dot: {
+    legendDot: {
         width: 8,
         height: 8,
         borderRadius: 4,
-        marginRight: 10,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 1,
-        shadowRadius: 5,
+        shadowOpacity: 0.8,
+        shadowRadius: 4,
+        elevation: 2,
     },
     legendText: {
-        ...theme.typography.body,
-        fontSize: 12,
-        color: theme.colors.textDim,
-    }
+        fontSize: 9,
+        color: theme.colors.textSecondary,
+        fontWeight: '700',
+        letterSpacing: 0.6,
+    },
 });
