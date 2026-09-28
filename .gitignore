@@ -27,6 +27,15 @@ build/
 ml/data/annotations/
 ml/data/images/
 ml/data/yolo_dataset/
+ml/data/coco_dataset/
+
+# Backend runtime files
+backend/uploads/
+backend/annotated/
+backend/*.db
+backend/error.log
+backend/error_clean.log
 
 # Misc
 .DS_Store
+*.log
