@@ -797,6 +797,17 @@ function initForum() {
         });
     }
 
+    const navMakePostBtn = document.getElementById('navMakePostBtn');
+    if (navMakePostBtn) {
+        navMakePostBtn.addEventListener('click', () => {
+            if (newPostModal) {
+                newPostModal.style.display = 'flex';
+            } else if (openNewPostBtn) {
+                openNewPostBtn.click();
+            }
+        });
+    }
+
     if (forumClose) {
         forumClose.addEventListener('click', () => {
             forumModal.style.display = 'none';

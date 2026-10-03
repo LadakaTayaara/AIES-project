@@ -131,6 +131,22 @@ export default function TacticalRoadTelemetryDashboard() {
   const [timeUtc, setTimeUtc] = useState('');
   const [expandedComments, setExpandedComments] = useState({ 'SLIP-8921-A': true });
 
+  // ── Modals: Make a Post & Paper Benchmarks ─────────────────────
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [isBenchmarkModalOpen, setIsBenchmarkModalOpen] = useState(false);
+  const [benchmarkTab, setBenchmarkTab] = useState("TABLES");
+  const [copyStatus, setCopyStatus] = useState("");
+  const [newPostData, setNewPostData] = useState({
+    title: "",
+    roadSegment: "SENAPATI BAPAT RD // SEC-04B",
+    severity: "CRITICAL",
+    depthMm: "70",
+    widthCm: "55",
+    gForce: "2.6G",
+    content: "",
+    author: "Citizen Surveyor #88"
+  });
+
   // Clock Ticker
   useEffect(() => {
     const updateTime = () => {
@@ -239,6 +255,26 @@ export default function TacticalRoadTelemetryDashboard() {
             <Activity className="w-3 h-3 text-[#38BDF8]" />
             <span className="text-[#9CA3AF]">YOLO11s-PCI // 12.4ms</span>
           </div>
+
+          {/* MAKE A POST BUTTON (UNMISSABLE AMBER CTA) */}
+          <button 
+            type="button"
+            onClick={() => setIsPostModalOpen(true)}
+            className="bg-[#F59E0B] hover:bg-amber-400 text-black font-extrabold px-2.5 py-1 rounded-[2px] border border-[#F59E0B] text-[10px] flex items-center gap-1 cursor-pointer transition shadow-[0_0_8px_rgba(245,158,11,0.25)]"
+          >
+            <span className="font-black text-xs">+</span>
+            <span>MAKE A POST</span>
+          </button>
+
+          {/* MODEL BENCHMARKS BUTTON */}
+          <button 
+            type="button"
+            onClick={() => setIsBenchmarkModalOpen(true)}
+            className="bg-[#101216] hover:bg-[#1A1D23] text-[#38BDF8] border border-[#38BDF8]/60 hover:border-[#38BDF8] px-2.5 py-1 rounded-[2px] text-[10px] flex items-center gap-1 cursor-pointer transition font-mono"
+          >
+            <span>📊 MODEL RESULTS</span>
+            <span className="bg-[#38BDF8]/20 text-[#38BDF8] px-1 py-0.2 rounded-[1px] text-[9px] font-bold">79.1% mAP</span>
+          </button>
 
           {/* System UTC Clock */}
           <div className="bg-[#0D0E11] border border-[#262B32] px-2 py-0.5 rounded-[2px] text-[#F59E0B] font-mono tabular-nums text-[11px] font-semibold">
@@ -497,6 +533,21 @@ export default function TacticalRoadTelemetryDashboard() {
               </span>
             </div>
 
+            {/* Quick Dispatch / Make a Post Button */}
+            <div className="py-1.5 border-b border-[#262B32]">
+              <button
+                type="button"
+                onClick={() => setIsPostModalOpen(true)}
+                className="w-full bg-[#101216] hover:bg-[#1C2026] border border-dashed border-[#F59E0B] text-[#F59E0B] p-2 rounded-[2px] font-mono text-[11px] flex items-center justify-between transition group shadow-[0_0_8px_rgba(245,158,11,0.12)] cursor-pointer"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="w-4 h-4 bg-[#F59E0B] text-black rounded-[2px] font-black flex items-center justify-center text-xs">+</span>
+                  <span className="font-extrabold tracking-wide text-white group-hover:text-[#F59E0B]">MAKE A CIVIC POST / LOG HAZARD</span>
+                </div>
+                <span className="text-[9px] text-[#6B7280] group-hover:text-white font-mono">DISPATCH →</span>
+              </button>
+            </div>
+
             {/* Scrollable Slips Deck */}
             <div className="flex-1 overflow-y-auto mt-2 space-y-2.5 pr-0.5 max-h-[720px]">
               {filteredSlips.map(slip => {
@@ -639,6 +690,349 @@ export default function TacticalRoadTelemetryDashboard() {
           </div>
         </aside>
       </div>
+
+      {/* ── MODAL 1: MAKE A CIVIC POST / INCIDENT DISPATCH ──────────────────── */}
+      {isPostModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#15181C] border border-[#262B32] rounded-[4px] max-w-lg w-full p-5 relative font-mono text-xs shadow-2xl">
+            <button 
+              type="button"
+              onClick={() => setIsPostModalOpen(false)}
+              className="absolute top-3 right-3 text-[#9CA3AF] hover:text-[#EF4444] text-base font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+            <div className="mb-4 pb-2 border-b border-[#262B32]">
+              <span className="text-[10px] text-[#F59E0B] font-bold tracking-wider uppercase">CIVIC DISPATCH DESK</span>
+              <h2 className="text-base font-['Cabinet_Grotesk',sans-serif] font-black text-white mt-0.5">DISPATCH NEW ROAD HAZARD POST</h2>
+              <p className="text-[11px] text-[#9CA3AF] font-sans mt-0.5">Log an unmapped pothole or initiate crowdsourced verification.</p>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!newPostData.title || !newPostData.content) return;
+              const newSlip = {
+                id: `SLIP-${Math.floor(1000 + Math.random() * 9000)}-Z`,
+                roadSegment: newPostData.roadSegment.toUpperCase(),
+                coordinates: "18.5204° N, 73.8567° E",
+                timestamp: timeUtc.substring(0, 8),
+                severity: newPostData.severity,
+                badgeLabel: newPostData.severity === "CRITICAL" ? "TIRE_HAZARD" : newPostData.severity === "MODERATE" ? "RIM_THREAT" : "SURFACE_CRACK",
+                depthMm: parseInt(newPostData.depthMm) || 50,
+                widthCm: parseInt(newPostData.widthCm) || 40,
+                gForcePeak: parseFloat(newPostData.gForce) || 2.4,
+                confidence: 0.92,
+                confirmVotes: 1,
+                falsePositiveVotes: 0,
+                userVoted: 'CONFIRM',
+                status: "DISPATCHED_TO_MAINTENANCE",
+                statusColor: "text-amber-500 border-amber-500/30 bg-amber-500/10",
+                imageUrl: "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=600&q=80",
+                reporter: newPostData.author,
+                note: newPostData.content,
+                comments: []
+              };
+              setSlips(prev => [newSlip, ...prev]);
+              setSelectedSlipId(newSlip.id);
+              setIsPostModalOpen(false);
+            }} className="space-y-3">
+              <div>
+                <label className="text-[10px] text-[#6B7280] uppercase font-bold block mb-1">INCIDENT TITLE / HAZARD HEADLINE</label>
+                <input 
+                  type="text" 
+                  required
+                  placeholder="e.g. Deep axle-strike crater near ICC Tech Park junction" 
+                  value={newPostData.title}
+                  onChange={(e) => setNewPostData({ ...newPostData, title: e.target.value })}
+                  className="w-full bg-[#0D0E11] border border-[#262B32] focus:border-[#F59E0B] px-3 py-1.5 rounded-[2px] text-white font-sans text-xs focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] text-[#6B7280] uppercase font-bold block mb-1">ROAD SEGMENT</label>
+                  <input 
+                    type="text" 
+                    required
+                    value={newPostData.roadSegment}
+                    onChange={(e) => setNewPostData({ ...newPostData, roadSegment: e.target.value })}
+                    className="w-full bg-[#0D0E11] border border-[#262B32] focus:border-[#F59E0B] px-3 py-1.5 rounded-[2px] text-white font-mono text-xs focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#6B7280] uppercase font-bold block mb-1">SEVERITY TIER</label>
+                  <select 
+                    value={newPostData.severity}
+                    onChange={(e) => setNewPostData({ ...newPostData, severity: e.target.value })}
+                    className="w-full bg-[#0D0E11] border border-[#262B32] focus:border-[#F59E0B] px-3 py-1.5 rounded-[2px] text-white font-mono text-xs focus:outline-none"
+                  >
+                    <option value="CRITICAL">[TIRE_HAZARD] Critical Crater</option>
+                    <option value="MODERATE">[RIM_THREAT] Moderate Defect</option>
+                    <option value="MINOR">[SURFACE_CRACK] Monitored</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-[10px] text-[#6B7280] uppercase font-bold block mb-1">EST. DEPTH (MM)</label>
+                  <input 
+                    type="number" 
+                    value={newPostData.depthMm}
+                    onChange={(e) => setNewPostData({ ...newPostData, depthMm: e.target.value })}
+                    className="w-full bg-[#0D0E11] border border-[#262B32] focus:border-[#F59E0B] px-2 py-1 rounded-[2px] text-white font-mono text-xs focus:outline-none tabular-nums"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#6B7280] uppercase font-bold block mb-1">EST. WIDTH (CM)</label>
+                  <input 
+                    type="number" 
+                    value={newPostData.widthCm}
+                    onChange={(e) => setNewPostData({ ...newPostData, widthCm: e.target.value })}
+                    className="w-full bg-[#0D0E11] border border-[#262B32] focus:border-[#F59E0B] px-2 py-1 rounded-[2px] text-white font-mono text-xs focus:outline-none tabular-nums"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] text-[#6B7280] uppercase font-bold block mb-1">IMU PEAK G</label>
+                  <input 
+                    type="text" 
+                    value={newPostData.gForce}
+                    onChange={(e) => setNewPostData({ ...newPostData, gForce: e.target.value })}
+                    className="w-full bg-[#0D0E11] border border-[#262B32] focus:border-[#F59E0B] px-2 py-1 rounded-[2px] text-white font-mono text-xs focus:outline-none tabular-nums"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[10px] text-[#6B7280] uppercase font-bold block mb-1">SURVEY REMARKS / HAZARD PROFILE</label>
+                <textarea 
+                  rows="3"
+                  required
+                  placeholder="Describe rim puncture threat, surface runoff, or two-wheeler traffic implications..."
+                  value={newPostData.content}
+                  onChange={(e) => setNewPostData({ ...newPostData, content: e.target.value })}
+                  className="w-full bg-[#0D0E11] border border-[#262B32] focus:border-[#F59E0B] p-2 rounded-[2px] text-white font-sans text-xs focus:outline-none"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-[#262B32] flex justify-end gap-2">
+                <button 
+                  type="button"
+                  onClick={() => setIsPostModalOpen(false)}
+                  className="px-3 py-1.5 rounded-[2px] border border-[#262B32] text-[#9CA3AF] hover:text-white text-xs font-mono"
+                >
+                  CANCEL
+                </button>
+                <button 
+                  type="submit"
+                  className="px-4 py-1.5 rounded-[2px] bg-[#F59E0B] hover:bg-amber-400 text-black font-extrabold text-xs font-mono shadow-[0_0_10px_rgba(245,158,11,0.3)] transition"
+                >
+                  DISPATCH INCIDENT REPORT →
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL 2: MODEL RESULTS & RESEARCH PAPER BENCHMARKS ─────────── */}
+      {isBenchmarkModalOpen && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#15181C] border border-[#262B32] rounded-[4px] max-w-4xl w-full max-h-[90vh] flex flex-col font-mono text-xs shadow-2xl overflow-hidden">
+            <div className="p-4 bg-[#111317] border-b border-[#262B32] flex items-center justify-between">
+              <div>
+                <span className="text-[10px] text-[#38BDF8] font-bold tracking-wider uppercase">RESEARCH BENCHMARK // AIES EVALUATION</span>
+                <h2 className="text-base font-['Cabinet_Grotesk',sans-serif] font-black text-white mt-0.5">
+                  YOLO11s ASTM-PCI vs Kumari et al. 2023 (IEEE Baseline)
+                </h2>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsBenchmarkModalOpen(false)}
+                className="text-[#9CA3AF] hover:text-[#EF4444] text-base font-bold cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* KPI Strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-[#0D0E11] border-b border-[#262B32] text-center">
+              <div className="bg-[#15181C] p-2 border border-[#262B32] rounded-[2px]">
+                <span className="text-[#6B7280] text-[10px] block">BINARY BASELINE mAP@0.5</span>
+                <span className="text-emerald-400 font-bold text-sm tabular-nums">79.12% 🏆</span>
+                <span className="text-[9px] text-[#6B7280] block">+3.32% vs Kumari et al.</span>
+              </div>
+              <div className="bg-[#15181C] p-2 border border-[#262B32] rounded-[2px]">
+                <span className="text-[#6B7280] text-[10px] block">CRITICAL CRATERS mAP@0.5</span>
+                <span className="text-[#EF4444] font-bold text-sm tabular-nums">84.90%</span>
+                <span className="text-[9px] text-[#6B7280] block">86.79% recall</span>
+              </div>
+              <div className="bg-[#15181C] p-2 border border-[#262B32] rounded-[2px]">
+                <span className="text-[#6B7280] text-[10px] block">CUDA INFERENCE LATENCY</span>
+                <span className="text-[#38BDF8] font-bold text-sm tabular-nums">12.4 ms</span>
+                <span className="text-[9px] text-[#6B7280] block">3.4x faster (RTX 3050)</span>
+              </div>
+              <div className="bg-[#15181C] p-2 border border-[#262B32] rounded-[2px]">
+                <span className="text-[#6B7280] text-[10px] block">ASTM D6433 CLASSIFICATION</span>
+                <span className="text-[#F59E0B] font-bold text-sm tabular-nums">3-Tier Severity</span>
+                <span className="text-[9px] text-[#6B7280] block">Novel research feature</span>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex bg-[#111317] border-b border-[#262B32] px-3 overflow-x-auto text-[11px]">
+              {[
+                { id: "TABLES", label: "📈 METRICS TABLES" },
+                { id: "PR_CURVE", label: "📊 PR CURVE" },
+                { id: "CONFUSION_MATRIX", label: "🎯 CONFUSION MATRIX" },
+                { id: "CONVERGENCE", label: "📉 CONVERGENCE" },
+                { id: "PREDICTIONS", label: "📸 TEST PREDICTIONS" },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setBenchmarkTab(tab.id)}
+                  className={`px-3 py-2 border-b-2 font-bold whitespace-nowrap transition cursor-pointer ${
+                    benchmarkTab === tab.id
+                      ? 'border-[#F59E0B] text-[#F59E0B] bg-[#15181C]'
+                      : 'border-transparent text-[#9CA3AF] hover:text-white'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Content Body */}
+            <div className="p-4 overflow-y-auto flex-1 bg-[#0D0E11]">
+              {benchmarkTab === "TABLES" && (
+                <div className="space-y-4">
+                  <div className="bg-[#15181C] border border-[#262B32] p-3 rounded-[3px]">
+                    <h4 className="font-bold text-white text-xs mb-2">TABLE I: PROPOSED YOLO11s VS KUMARI ET AL. 2023 (IEEE)</h4>
+                    <table className="w-full text-left text-[11px] font-mono border-collapse">
+                      <thead>
+                        <tr className="border-b border-[#262B32] text-[#6B7280] text-[10px]">
+                          <th className="py-1.5 px-2">MODEL ARCHITECTURE</th>
+                          <th className="py-1.5 px-2">mAP@0.5 (%)</th>
+                          <th className="py-1.5 px-2">PRECISION (%)</th>
+                          <th className="py-1.5 px-2">LATENCY</th>
+                          <th className="py-1.5 px-2 text-right">SEVERITY</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#262B32]">
+                        <tr className="text-slate-400">
+                          <td className="py-1.5 px-2">YOLOv8s (Kumari et al. 2023)</td>
+                          <td className="py-1.5 px-2 tabular-nums">75.80</td>
+                          <td className="py-1.5 px-2 tabular-nums">82.50</td>
+                          <td className="py-1.5 px-2 tabular-nums">42.1 ms</td>
+                          <td className="py-1.5 px-2 text-right text-slate-500">None</td>
+                        </tr>
+                        <tr className="text-slate-400">
+                          <td className="py-1.5 px-2">YOLOv8l (Kumari et al. 2023)</td>
+                          <td className="py-1.5 px-2 tabular-nums">78.70</td>
+                          <td className="py-1.5 px-2 tabular-nums">83.20</td>
+                          <td className="py-1.5 px-2 tabular-nums">72.0 ms</td>
+                          <td className="py-1.5 px-2 text-right text-slate-500">None</td>
+                        </tr>
+                        <tr className="bg-emerald-950/20 text-white font-bold border-l-2 border-emerald-400">
+                          <td className="py-1.5 px-2 text-emerald-400">Proposed YOLO11s (Binary Baseline)</td>
+                          <td className="py-1.5 px-2 text-emerald-400 tabular-nums">79.12% 🏆</td>
+                          <td className="py-1.5 px-2 tabular-nums">78.78%</td>
+                          <td className="py-1.5 px-2 tabular-nums text-cyan-400">12.4 ms</td>
+                          <td className="py-1.5 px-2 text-right text-emerald-400">SURPASSED ALL</td>
+                        </tr>
+                        <tr className="bg-amber-950/20 text-white font-bold border-l-2 border-[#F59E0B]">
+                          <td className="py-1.5 px-2 text-[#F59E0B]">Proposed YOLO11s (ASTM 3-Tier Severity)</td>
+                          <td className="py-1.5 px-2 text-[#F59E0B] tabular-nums">73.16%</td>
+                          <td className="py-1.5 px-2 tabular-nums">80.04%</td>
+                          <td className="py-1.5 px-2 tabular-nums text-cyan-400">12.4 ms</td>
+                          <td className="py-1.5 px-2 text-right text-[#F59E0B]">ASTM D6433</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="bg-[#15181C] border border-[#262B32] p-3 rounded-[3px]">
+                    <h4 className="font-bold text-white text-xs mb-2">TABLE II: PER-CLASS HAZARD SEVERITY (ASTM D6433 PCI)</h4>
+                    <table className="w-full text-left text-[11px] font-mono border-collapse">
+                      <thead>
+                        <tr className="border-b border-[#262B32] text-[#6B7280] text-[10px]">
+                          <th className="py-1.5 px-2">SEVERITY TIER</th>
+                          <th className="py-1.5 px-2">PRECISION (%)</th>
+                          <th className="py-1.5 px-2">RECALL (%)</th>
+                          <th className="py-1.5 px-2">mAP@0.5 (%)</th>
+                          <th className="py-1.5 px-2 text-right">CIVIC RESPONSE</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#262B32]">
+                        <tr className="bg-red-950/20 text-[#EF4444] font-bold">
+                          <td className="py-1.5 px-2">CRITICAL CRATER</td>
+                          <td className="py-1.5 px-2 tabular-nums">76.39%</td>
+                          <td className="py-1.5 px-2 tabular-nums text-white">86.79%</td>
+                          <td className="py-1.5 px-2 tabular-nums text-white">84.90%</td>
+                          <td className="py-1.5 px-2 text-right">IMMEDIATE DISPATCH</td>
+                        </tr>
+                        <tr className="bg-amber-950/20 text-[#F59E0B]">
+                          <td className="py-1.5 px-2">MODERATE DEFECT</td>
+                          <td className="py-1.5 px-2 tabular-nums">81.74%</td>
+                          <td className="py-1.5 px-2 tabular-nums">54.98%</td>
+                          <td className="py-1.5 px-2 tabular-nums">70.30%</td>
+                          <td className="py-1.5 px-2 text-right">SCHEDULED WORK</td>
+                        </tr>
+                        <tr className="text-slate-400">
+                          <td className="py-1.5 px-2 text-emerald-400">MINOR WEATHERING</td>
+                          <td className="py-1.5 px-2 tabular-nums">81.99%</td>
+                          <td className="py-1.5 px-2 tabular-nums">51.75%</td>
+                          <td className="py-1.5 px-2 tabular-nums">64.30%</td>
+                          <td className="py-1.5 px-2 text-right">SURFACE SEAL</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {benchmarkTab === "PR_CURVE" && (
+                <div className="flex flex-col items-center">
+                  <img src="/static/figures/BoxPR_curve.png" alt="PR Curve" className="max-h-[460px] object-contain rounded-[2px]" />
+                  <p className="text-[11px] text-[#9CA3AF] mt-2">Figure 1: Precision-Recall Curve showing 0.849 mAP on severe craters.</p>
+                </div>
+              )}
+
+              {benchmarkTab === "CONFUSION_MATRIX" && (
+                <div className="flex flex-col items-center">
+                  <img src="/static/figures/confusion_matrix_normalized.png" alt="Confusion Matrix" className="max-h-[460px] object-contain rounded-[2px]" />
+                  <p className="text-[11px] text-[#9CA3AF] mt-2">Figure 2: Confusion Matrix showing 87% true positive recall on critical craters.</p>
+                </div>
+              )}
+
+              {benchmarkTab === "CONVERGENCE" && (
+                <div className="flex flex-col items-center">
+                  <img src="/static/figures/results.png" alt="Training Metrics" className="max-h-[460px] object-contain rounded-[2px]" />
+                  <p className="text-[11px] text-[#9CA3AF] mt-2">Figure 3: Training convergence curves across 45 epochs.</p>
+                </div>
+              )}
+
+              {benchmarkTab === "PREDICTIONS" && (
+                <div className="flex flex-col items-center">
+                  <img src="/static/figures/val_batch0_pred.jpg" alt="Model Predictions" className="max-h-[460px] object-contain rounded-[2px]" />
+                  <p className="text-[11px] text-[#9CA3AF] mt-2">Figure 4: Ground truth vs model bounding box predictions.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 bg-[#111317] border-t border-[#262B32] flex items-center justify-between text-[11px] text-[#6B7280]">
+              <span>EVALUATED ON 3,747 AUGMENTED HIGHWAY & URBAN TILES</span>
+              <button 
+                type="button"
+                onClick={() => setIsBenchmarkModalOpen(false)}
+                className="px-3 py-1 bg-[#262B32] hover:bg-[#F59E0B] hover:text-black text-slate-300 rounded-[2px] font-bold transition cursor-pointer"
+              >
+                CLOSE WINDOW
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
