@@ -7,9 +7,10 @@ if os.path.exists(db_path):
     conn = sqlite3.connect(db_path)
     cur = conn.cursor()
     cur.execute("DELETE FROM reports")
+    cur.execute("DELETE FROM forum_posts WHERE author_name LIKE '%Test%' OR title LIKE '%test%' OR title LIKE '%Identification Help%'")
     conn.commit()
     conn.close()
-    print("Database reports table cleared.")
+    print("Database reports and test forum posts cleared.")
 
 backend_dir = os.path.join(os.path.dirname(__file__), "..", "backend")
 for folder in ["uploads", "annotated"]:

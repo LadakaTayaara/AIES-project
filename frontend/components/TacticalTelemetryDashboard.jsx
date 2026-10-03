@@ -138,13 +138,13 @@ export default function TacticalRoadTelemetryDashboard() {
   const [copyStatus, setCopyStatus] = useState("");
   const [newPostData, setNewPostData] = useState({
     title: "",
-    roadSegment: "SENAPATI BAPAT RD // SEC-04B",
+    roadSegment: "",
     severity: "CRITICAL",
-    depthMm: "70",
-    widthCm: "55",
-    gForce: "2.6G",
+    depthMm: "",
+    widthCm: "",
+    gForce: "",
     content: "",
-    author: "Citizen Surveyor #88"
+    author: ""
   });
 
   // Clock Ticker
