@@ -79,6 +79,15 @@ async def serve_dashboard():
     }
 
 
+@app.get("/tactical")
+async def serve_tactical():
+    """Serve the Tactical Road Telemetry & Civic Dispatch dashboard."""
+    tactical_path = static_dir / "tactical.html"
+    if tactical_path.exists():
+        return FileResponse(str(tactical_path))
+    return {"message": "Tactical dashboard not found. Please verify backend/static/tactical.html exists."}
+
+
 # ── Startup event ────────────────────────────────────────────────────
 @app.on_event("startup")
 async def startup():

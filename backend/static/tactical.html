@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TACTICAL TELEMETRY // CIVIC DISPATCH — Hole Lotta Problems</title>
+  <meta name="description" content="Tactical Road Telemetry & Civic Hazard Dispatch platform. High-precision GIS mapping, ASTM severity indexing, and crowdsourced municipal accountability.">
+
+  <!-- Tactical Typography: Syne (Mechanical Display), JetBrains Mono (Telemetry/Data), Inter (Dense Body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            asphalt: {
+              DEFAULT: '#0D0E11',
+              deep: '#090A0D',
+              border: '#1F242C',
+            },
+            panel: {
+              DEFAULT: '#15181C',
+              subtle: '#1C2026',
+              hover: '#22272F',
+              dark: '#101216',
+            },
+            tactical: {
+              border: '#262B32',
+              grid: '#1F242C',
+              faint: 'rgba(255, 255, 255, 0.06)',
+            },
+            reflector: {
+              amber: '#F59E0B',
+              subtle: 'rgba(245, 158, 11, 0.12)',
+            },
+            flare: {
+              crimson: '#EF4444',
+              subtle: 'rgba(239, 68, 68, 0.12)',
+            },
+            phosphor: {
+              green: '#10B981',
+              subtle: 'rgba(16, 185, 129, 0.12)',
+            },
+            telemetry: {
+              cyan: '#38BDF8',
+              subtle: 'rgba(56, 189, 248, 0.12)',
+            },
+          },
+          fontFamily: {
+            display: ['"Syne"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+            body: ['"Inter"', 'sans-serif'],
+          },
+          borderRadius: {
+            DEFAULT: '4px',
+            tight: '2px',
+            none: '0px',
+            sm: '2px',
+            md: '4px',
+          },
+        }
+      }
+    }
+  </script>
+
+  <!-- Leaflet CSS & JS for dark vector road map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- React 18 & Babel Standalone -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Lucide Icons Standalone -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* ── Tactical Global Reset & Technical Gridlines ─────────────── */
+    * {
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      background-color: #0D0E11;
+      color: #E2E8F0;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    .tabular-nums {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Subtle Technical Grid Matrix */
+    .tactical-grid-bg {
+      background-size: 24px 24px;
+      background-image: 
+        linear-gradient(to right, rgba(38, 43, 50, 0.35) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(38, 43, 50, 0.35) 1px, transparent 1px);
+    }
+
+    /* Hairline technical divider */
+    .hairline-b {
+      border-bottom: 1px solid #262B32;
+    }
+    .hairline-r {
+      border-right: 1px solid #262B32;
+    }
+    .hairline-l {
+      border-left: 1px solid #262B32;
+    }
+    .hairline-t {
+      border-top: 1px solid #262B32;
+    }
+
+    /* Register crosshairs (+) on panel corners */
+    .crosshair-corner {
+      position: relative;
+    }
+    .crosshair-corner::before {
+      content: "+";
+      position: absolute;
+      top: -7px;
+      left: -6px;
+      color: #F59E0B;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      pointer-events: none;
+      z-index: 20;
+      opacity: 0.8;
+    }
+    .crosshair-corner::after {
+      content: "+";
+      position: absolute;
+      bottom: -7px;
+      right: -6px;
+      color: #F59E0B;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      pointer-events: none;
+      z-index: 20;
+      opacity: 0.8;
+    }
+
+    /* Physical Perforated Edge for Field Incident Slips */
+    .perforated-edge {
+      background-image: radial-gradient(#0D0E11 4px, transparent 4.5px);
+      background-size: 12px 12px;
+      background-position: -6px top;
+      background-repeat: repeat-x;
+      height: 8px;
+    }
+
+    /* Leaflet Dark Customization */
+    .leaflet-container {
+      background-color: #0D0E11 !important;
+      font-family: 'JetBrains Mono', monospace !important;
+    }
+    .leaflet-control-zoom {
+      border: 1px solid #262B32 !important;
+      border-radius: 4px !important;
+      overflow: hidden;
+    }
+    .leaflet-control-zoom a {
+      background: #15181C !important;
+      color: #94A3B8 !important;
+      border-bottom: 1px solid #262B32 !important;
+    }
+    .leaflet-control-zoom a:hover {
+      background: #22272F !important;
+      color: #F59E0B !important;
+    }
+
+    /* Custom Diamond Crosshair Map Marker */
+    .tactical-marker-pin {
+      width: 22px;
+      height: 22px;
+      transform: translate(-50%, -50%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .diamond-shape {
+      width: 14px;
+      height: 14px;
+      transform: rotate(45deg);
+      border: 1.5px solid currentColor;
+      box-shadow: 0 0 6px currentColor;
+      transition: all 0.2s ease;
+    }
+    .pulse-ring {
+      position: absolute;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 1px dashed currentColor;
+      animation: pulse-spin 4s linear infinite;
+      opacity: 0.45;
+    }
+    @keyframes pulse-spin {
+      0% { transform: rotate(0deg) scale(0.9); opacity: 0.6; }
+      50% { transform: rotate(180deg) scale(1.1); opacity: 0.2; }
+      100% { transform: rotate(360deg) scale(0.9); opacity: 0.6; }
+    }
+
+    /* Custom Scrollbar for dense lists */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #101216;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #262B32;
+      border-radius: 2px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #F59E0B;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // ── Static Initial Telemetry & Geocoded Pune Hazards ────────────
+    const SECTORS = [
+      { id: "ALL", label: "ALL SECTORS", count: 4 },
+      { id: "SEC-04B", label: "SEC-04B (S. Bapat Rd)", count: 2 },
+      { id: "SEC-02A", label: "SEC-02A (JM Road)", count: 1 },
+      { id: "SEC-01C", label: "SEC-01C (Karve Rd)", count: 1 },
+    ];
+
+    const INITIAL_DISPATCH_SLIPS = [
+      {
+        id: "SLIP-8921-A",
+        segment: "SENAPATI BAPAT RD // SEC-04B",
+        coords: "18.5312° N, 73.8445° E",
+        lat: 18.5312,
+        lng: 73.8445,
+        time: "14:18:02 UTC",
+        badge: "TIRE_HAZARD",
+        severity: "CRITICAL",
+        depthMm: 85,
+        widthCm: 72,
+        gForce: "2.8G",
+        confidence: "94.2%",
+        confirmCount: 48,
+        falseCount: 1,
+        userVote: null,
+        status: "DISPATCHED_TO_MAINTENANCE",
+        statusBadge: "MAINT_DISPATCH",
+        statusColor: "text-amber-500 border-amber-500/30 bg-amber-500/10",
+        thumb: "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=600&q=80",
+        reportedBy: "SURVEYOR #09 (RALLY_UNIT)",
+        dispatchNote: "Crater submerged in gutter runoff. Severe tire puncture risk for 2-wheelers at ICC Tech Park.",
+        comments: [
+          { user: "PMC Ward 04 Engineer", time: "14:25 UTC", msg: "Rapid repair patch truck en route with cold mix #88." },
+          { user: "Commuter_Amit", time: "14:28 UTC", msg: "Left lane completely blocked with warning barrels." }
+        ]
+      },
+      {
+        id: "SLIP-8919-C",
+        segment: "JANGALI MAHARAJ RD // SEC-02A",
+        coords: "18.5204° N, 73.8567° E",
+        lat: 18.5204,
+        lng: 73.8567,
+        time: "13:54:11 UTC",
+        badge: "RIM_THREAT",
+        severity: "MODERATE",
+        depthMm: 45,
+        widthCm: 38,
+        gForce: "1.7G",
+        confidence: "88.5%",
+        confirmCount: 23,
+        falseCount: 0,
+        userVote: null,
+        status: "CIVIL_CREW_ASSIGNED",
+        statusBadge: "CREW_ASSIGNED",
+        statusColor: "text-amber-400 border-amber-400/30 bg-amber-400/10",
+        thumb: "https://images.unsplash.com/photo-1584463699044-f25b2f2d9669?auto=format&fit=crop&w=600&q=80",
+        reportedBy: "BUSROUTE-14 DASHCAM",
+        dispatchNote: "Asphalt edge shear along bus bay curb. IMU telemetry recorded 1.7G vertical compression.",
+        comments: [
+          { user: "Traffic_Marshal_Shinde", time: "14:02 UTC", msg: "Temporary cones set up on median edge." }
+        ]
+      },
+      {
+        id: "SLIP-8904-X",
+        segment: "KARVE ROAD // SEC-01C",
+        coords: "18.5089° N, 73.8291° E",
+        lat: 18.5089,
+        lng: 73.8291,
+        time: "12:30:45 UTC",
+        badge: "MUNI_PATCHED",
+        severity: "RESOLVED",
+        depthMm: 0,
+        widthCm: 50,
+        gForce: "0.4G",
+        confidence: "96.1%",
+        confirmCount: 62,
+        falseCount: 0,
+        userVote: null,
+        status: "MUNICIPAL_REPAIR_CONFIRMED",
+        statusBadge: "PATCH_VERIFIED",
+        statusColor: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10",
+        thumb: "https://images.unsplash.com/photo-1578991624414-276ef23a534f?auto=format&fit=crop&w=600&q=80",
+        reportedBy: "CITIZEN_DRIVE_VERIFY",
+        dispatchNote: "PMC completed hot-pour bitumen mastic overlay. Smooth surface verified by 12 subsequent passes.",
+        comments: [
+          { user: "Inspector Kulkarni", time: "12:45 UTC", msg: "Final surface roughness audit passed. Ticket closed." }
+        ]
+      },
+      {
+        id: "SLIP-8898-B",
+        segment: "PASHAN HIGHWAY // SEC-04B",
+        coords: "18.5398° N, 73.7922° E",
+        lat: 18.5398,
+        lng: 73.7922,
+        time: "11:15:30 UTC",
+        badge: "SURFACE_CRACK",
+        severity: "MINOR",
+        depthMm: 22,
+        widthCm: 90,
+        gForce: "1.1G",
+        confidence: "82.4%",
+        confirmCount: 14,
+        falseCount: 2,
+        userVote: null,
+        status: "MONITORED_DEFORMATION",
+        statusBadge: "MONITORED",
+        statusColor: "text-slate-400 border-slate-500/30 bg-slate-500/10",
+        thumb: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=600&q=80",
+        reportedBy: "SCOOTER_IMU_UNIT#41",
+        dispatchNote: "Longitudinal alligator cracking following monsoon runoff. Scheduled for preventive slurry seal.",
+        comments: []
+      }
+    ];
+
+    function TacticalTelemetryApp() {
+      // ── States ─────────────────────────────────────────────────────
+      const [slips, setSlips] = useState(INITIAL_DISPATCH_SLIPS);
+      const [selectedSlipId, setSelectedSlipId] = useState("SLIP-8921-A");
+      const [activeSector, setActiveSector] = useState("ALL");
+      const [isTableDrawerOpen, setIsTableDrawerOpen] = useState(true);
+      const [activeLayer, setActiveLayer] = useState("SATELLITE_RECON");
+      const [liveClock, setLiveClock] = useState("00:00:00 UTC");
+      const [activeTab, setActiveTab] = useState("DISPATCH_FEED"); // DISPATCH_FEED or FORUM_THREADS
+      const [commentInputs, setCommentInputs] = useState({});
+
+      const mapContainerRef = useRef(null);
+      const mapInstanceRef = useRef(null);
+      const markersRef = useRef({});
+      const layersRef = useRef({});
+
+      // ── Live UTC Clock ─────────────────────────────────────────────
+      useEffect(() => {
+        const updateClock = () => {
+          const now = new Date();
+          setLiveClock(now.toISOString().substring(11, 19) + " UTC");
+        };
+        updateClock();
+        const timer = setInterval(updateClock, 1000);
+        return () => clearInterval(timer);
+      }, []);
+
+      // ── Initialize Leaflet Road Map (Default: High-Res Satellite Imagery) ───
+      useEffect(() => {
+        if (!mapContainerRef.current || mapInstanceRef.current) return;
+
+        const map = L.map(mapContainerRef.current, {
+          center: [18.525, 73.835],
+          zoom: 13,
+          zoomControl: false,
+          attributionControl: false
+        });
+
+        // 1. High-Resolution Satellite Recon Layer (Default)
+        const satBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 19,
+          maxNativeZoom: 18,
+          attribution: 'Esri, Maxar, Earthstar Geographics'
+        });
+        const satTransport = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 19,
+          maxNativeZoom: 18
+        });
+        const satLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 19,
+          maxNativeZoom: 18
+        });
+        const satGroup = L.layerGroup([satBase, satTransport, satLabels]);
+
+        // 2. Tactical Vector Dark Canvas Layer
+        const darkBase = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 16,
+          attribution: 'Esri, DeLorme, NAVTEQ'
+        });
+        const darkLabels = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
+          maxZoom: 16
+        });
+        const vectorGroup = L.layerGroup([darkBase, darkLabels]);
+
+        layersRef.current = {
+          SATELLITE_RECON: satGroup,
+          VECTOR_GIS: vectorGroup
+        };
+
+        // Add SATELLITE RECON as the DEFAULT layer
+        satGroup.addTo(map);
+
+        L.control.zoom({ position: 'bottomright' }).addTo(map);
+        mapInstanceRef.current = map;
+
+        return () => {
+          map.remove();
+          mapInstanceRef.current = null;
+        };
+      }, []);
+
+      // ── Handle Layer Switching ─────────────────────────────────────
+      const handleLayerToggle = (layerKey) => {
+        setActiveLayer(layerKey);
+        if (!mapInstanceRef.current || !layersRef.current) return;
+        const map = mapInstanceRef.current;
+        Object.values(layersRef.current).forEach(layer => {
+          if (map.hasLayer(layer)) {
+            map.removeLayer(layer);
+          }
+        });
+        if (layersRef.current[layerKey]) {
+          layersRef.current[layerKey].addTo(map);
+        }
+      };
+
+      // ── Render Diamond Crosshair Pins on Leaflet Map ───────────────
+      useEffect(() => {
+        if (!mapInstanceRef.current) return;
+        const map = mapInstanceRef.current;
+
+        // Clear existing markers
+        Object.values(markersRef.current).forEach(m => m.remove());
+        markersRef.current = {};
+
+        slips.forEach(slip => {
+          const isSelected = slip.id === selectedSlipId;
+          const pinColor = slip.severity === "CRITICAL" ? "#EF4444" : slip.severity === "MODERATE" ? "#F59E0B" : "#10B981";
+
+          const customIcon = L.divIcon({
+            className: 'custom-tactical-marker',
+            html: `
+              <div class="tactical-marker-pin" style="color: ${pinColor}">
+                <div class="pulse-ring" style="border-color: ${pinColor}"></div>
+                <div class="diamond-shape" style="background-color: ${isSelected ? pinColor : '#15181C'}; border-color: ${pinColor}"></div>
+              </div>
+            `,
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+          });
+
+          const marker = L.marker([slip.lat, slip.lng], { icon: customIcon }).addTo(map);
+          marker.on('click', () => {
+            setSelectedSlipId(slip.id);
+          });
+          markersRef.current[slip.id] = marker;
+        });
+      }, [slips, selectedSlipId]);
+
+      // ── Pan Map to Selected Slip ───────────────────────────────────
+      const handleSelectSlip = (slip) => {
+        setSelectedSlipId(slip.id);
+        if (mapInstanceRef.current) {
+          mapInstanceRef.current.flyTo([slip.lat, slip.lng], 14, { duration: 1 });
+        }
+      };
+
+      // ── Handle Vote Toggles (Single-Vote Locking) ──────────────────
+      const handleVote = (slipId, voteType) => {
+        setSlips(prev => prev.map(s => {
+          if (s.id !== slipId) return s;
+          let newConfirm = s.confirmCount;
+          let newFalse = s.falseCount;
+          let newUserVote = s.userVote;
+
+          if (s.userVote === voteType) {
+            // Cancel vote
+            if (voteType === 'CONFIRM') newConfirm -= 1;
+            if (voteType === 'FALSE') newFalse -= 1;
+            newUserVote = null;
+          } else {
+            // Remove previous vote if existed
+            if (s.userVote === 'CONFIRM') newConfirm -= 1;
+            if (s.userVote === 'FALSE') newFalse -= 1;
+
+            // Apply new vote
+            if (voteType === 'CONFIRM') newConfirm += 1;
+            if (voteType === 'FALSE') newFalse += 1;
+            newUserVote = voteType;
+          }
+
+          return {
+            ...s,
+            confirmCount: Math.max(0, newConfirm),
+            falseCount: Math.max(0, newFalse),
+            userVote: newUserVote
+          };
+        }));
+      };
+
+      // ── Handle Comment Submission ──────────────────────────────────
+      const handleAddComment = (slipId) => {
+        const text = commentInputs[slipId];
+        if (!text || !text.trim()) return;
+
+        setSlips(prev => prev.map(s => {
+          if (s.id !== slipId) return s;
+          return {
+            ...s,
+            comments: [
+              ...s.comments,
+              { user: "Civic Surveyor #88", time: liveClock.substring(0, 5) + " UTC", msg: text.trim() }
+            ]
+          };
+        }));
+
+        setCommentInputs(prev => ({ ...prev, [slipId]: "" }));
+      };
+
+      // ── Metrics Computation ────────────────────────────────────────
+      const totalLogged = slips.length + 84; // Simulated sector telemetry tally
+      const totalVerificationsToday = slips.reduce((acc, s) => acc + s.confirmCount, 0) + 147;
+      const patchRate = "78.4%";
+
+      const filteredSlips = activeSector === "ALL" 
+        ? slips 
+        : slips.filter(s => s.segment.includes(activeSector));
+
+      const selectedSlip = slips.find(s => s.id === selectedSlipId) || slips[0];
+
+      return (
+        <div className="min-h-screen bg-[#0D0E11] text-[#E2E8F0] font-body flex flex-col antialiased select-none">
+          
+          {/* ═══════════════════════════════════════════════════════════
+              1. TOP SYSTEM STATUS RIBBON (TE & Rally Telemetry)
+              ═══════════════════════════════════════════════════════════ */}
+          <header className="bg-[#15181C] hairline-b px-4 py-2 flex flex-wrap items-center justify-between text-xs font-mono crosshair-corner z-30">
+            {/* Left: Tactical Brand & GPS Fix */}
+            <div className="flex items-center space-x-3">
+              <div className="flex items-center space-x-2">
+                <span className="w-2.5 h-2.5 bg-[#F59E0B] rounded-none rotate-45 inline-block"></span>
+                <span className="font-display font-extrabold tracking-wider text-white text-sm">HOLE LOTTA PROBLEMS</span>
+                <span className="text-[#64748B]">/</span>
+                <span className="bg-[#101216] border border-[#262B32] px-1.5 py-0.5 rounded-[2px] text-[#F59E0B] font-bold text-[10px] tracking-wider">
+                  TACTICAL DISPATCH
+                </span>
+              </div>
+
+              <div className="hidden lg:flex items-center space-x-2 border-l border-[#262B32] pl-3">
+                <span className="text-[#64748B]">GPS LOCK:</span>
+                <span className="text-[#38BDF8] font-bold">PUNE SECTOR-04</span>
+                <span className="text-[#64748B] text-[10px]">(18.5204°N, 73.8567°E)</span>
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              </div>
+            </div>
+
+            {/* Center: Live Telemetry Gauges */}
+            <div className="flex items-center space-x-4 my-1 sm:my-0">
+              <div className="flex items-center space-x-1.5 bg-[#0D0E11] px-2.5 py-1 border border-[#262B32] rounded-[4px]">
+                <span className="text-[#94A3B8]">HAZARDS LOGGED:</span>
+                <span className="text-white font-bold tabular-nums">{totalLogged}</span>
+              </div>
+
+              <div className="flex items-center space-x-1.5 bg-[#0D0E11] px-2.5 py-1 border border-[#262B32] rounded-[4px]">
+                <span className="text-[#94A3B8]">COMMUNITY VERIF:</span>
+                <span className="text-[#F59E0B] font-bold tabular-nums">+{totalVerificationsToday}</span>
+              </div>
+
+              <div className="hidden md:flex items-center space-x-1.5 bg-[#0D0E11] px-2.5 py-1 border border-[#262B32] rounded-[4px]">
+                <span className="text-[#94A3B8]">PATCH RATE:</span>
+                <span className="text-[#10B981] font-bold tabular-nums">{patchRate}</span>
+              </div>
+
+              <div className="hidden xl:flex items-center space-x-1.5 bg-[#0D0E11] px-2 py-1 border border-[#262B32] rounded-[4px]">
+                <span className="text-[#64748B]">INFERENCE:</span>
+                <span className="text-[#38BDF8] font-bold">YOLO11s 12.4ms</span>
+              </div>
+            </div>
+
+            {/* Right: Clock & Theme Toggle Back */}
+            <div className="flex items-center space-x-3">
+              <span className="text-[#F59E0B] tabular-nums font-bold tracking-wider">{liveClock}</span>
+              
+              <a 
+                href="/" 
+                className="bg-[#1C2026] hover:bg-[#262B32] border border-[#262B32] hover:border-[#F59E0B] text-slate-300 hover:text-white px-2.5 py-1 rounded-[4px] text-[11px] font-mono transition flex items-center space-x-1"
+                title="Switch back to Classic Minimalist Dashboard"
+              >
+                <span>← CLASSIC VIEW</span>
+              </a>
+            </div>
+          </header>
+
+          {/* ═══════════════════════════════════════════════════════════
+              MAIN LAYOUT GRID: Survey Deck (Left/Center) + Dispatch Feed (Right)
+              ═══════════════════════════════════════════════════════════ */}
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden h-[calc(100vh-42px)]">
+
+            {/* ──────────────────────────────────────────────────────────
+                LEFT / CENTER: MAIN SURVEY DECK (Col 1-8)
+                ────────────────────────────────────────────────────────── */}
+            <div className="lg:col-span-8 flex flex-col hairline-r h-full relative overflow-hidden bg-[#0D0E11]">
+
+              {/* Map Tactical Control Toolbar */}
+              <div className="bg-[#15181C] hairline-b px-4 py-2 flex items-center justify-between text-xs font-mono z-10">
+                {/* Sector Filter Chips */}
+                <div className="flex items-center space-x-1 overflow-x-auto">
+                  <span className="text-[#64748B] text-[10px] uppercase font-bold mr-1">SECTOR:</span>
+                  {SECTORS.map(sec => (
+                    <button
+                      key={sec.id}
+                      onClick={() => setActiveSector(sec.id)}
+                      className={`px-2 py-1 rounded-[3px] text-[11px] font-mono transition border ${
+                        activeSector === sec.id
+                          ? 'bg-[#F59E0B] text-black font-bold border-[#F59E0B]'
+                          : 'bg-[#101216] text-[#94A3B8] border-[#262B32] hover:text-white hover:border-[#64748B]'
+                      }`}
+                    >
+                      {sec.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Layer Toggle Chips */}
+                <div className="flex items-center space-x-2">
+                  <div className="flex border border-[#262B32] rounded-[4px] overflow-hidden">
+                    <button 
+                      onClick={() => handleLayerToggle('SATELLITE_RECON')}
+                      className={`px-2 py-0.5 text-[10px] font-bold ${
+                        activeLayer === 'SATELLITE_RECON' ? 'bg-[#262B32] text-[#F59E0B]' : 'bg-[#15181C] text-[#64748B]'
+                      }`}
+                    >
+                      🛰 SATELLITE [DEFAULT]
+                    </button>
+                    <button 
+                      onClick={() => handleLayerToggle('VECTOR_GIS')}
+                      className={`px-2 py-0.5 text-[10px] font-bold border-l border-[#262B32] ${
+                        activeLayer === 'VECTOR_GIS' ? 'bg-[#262B32] text-[#F59E0B]' : 'bg-[#15181C] text-[#64748B]'
+                      }`}
+                    >
+                      ◈ VECTOR_DARK
+                    </button>
+                  </div>
+
+                  <span className="text-[#64748B] text-[10px] hidden sm:inline">PUNE RECON</span>
+                </div>
+              </div>
+
+              {/* The Dark Vector Road Map Canvas */}
+              <div className="flex-1 relative w-full min-h-0 overflow-hidden">
+                <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+
+                {/* Floating HUD Reticle Overlay */}
+                <div className="absolute top-3 left-3 bg-[#15181C]/90 backdrop-blur-none border border-[#262B32] p-2.5 rounded-[4px] text-[11px] font-mono pointer-events-none z-[1000] crosshair-corner">
+                  <div className="flex items-center space-x-2 text-[#38BDF8] font-bold">
+                    <span className="w-1.5 h-1.5 bg-[#38BDF8] rounded-none rotate-45"></span>
+                    <span>SURVEY DECK // LIVE SENSORS</span>
+                  </div>
+                  <div className="text-[#94A3B8] text-[10px] mt-1">
+                    FOCUS: <span className="text-white font-bold">{selectedSlip.segment}</span>
+                  </div>
+                  <div className="text-[#64748B] text-[10px] tabular-nums">
+                    COORDS: {selectedSlip.coords}
+                  </div>
+                </div>
+
+                {/* Legend Stamp */}
+                <div className="absolute bottom-3 left-3 bg-[#15181C]/95 border border-[#262B32] px-3 py-1.5 rounded-[4px] text-[10px] font-mono flex items-center space-x-3 pointer-events-none z-[1000]">
+                  <div className="flex items-center space-x-1">
+                    <span className="w-2.5 h-2.5 bg-[#EF4444] rotate-45 border border-red-300"></span>
+                    <span className="text-slate-300">CRATER (CRITICAL)</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="w-2.5 h-2.5 bg-[#F59E0B] rotate-45 border border-amber-300"></span>
+                    <span className="text-slate-300">MODERATE</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <span className="w-2.5 h-2.5 bg-[#10B981] rotate-45 border border-emerald-300"></span>
+                    <span className="text-slate-300">PATCHED</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ──────────────────────────────────────────────────────────
+                  COLLAPSIBLE BOTTOM DRAWER: High-Density Telemetry Matrix
+                  ────────────────────────────────────────────────────────── */}
+              <div className="bg-[#15181C] hairline-t transition-all duration-200 z-20 flex flex-col flex-shrink-0">
+                {/* Drawer Header Toggle */}
+                <div 
+                  onClick={() => setIsTableDrawerOpen(!isTableDrawerOpen)}
+                  className="px-4 py-2 flex items-center justify-between cursor-pointer hover:bg-[#1C2026] text-xs font-mono"
+                >
+                  <div className="flex items-center space-x-2">
+                    <span className="font-display font-bold text-white tracking-wider">
+                      RECENT ROAD TELEMETRY DETECTIONS
+                    </span>
+                    <span className="bg-[#262B32] text-[#F59E0B] text-[10px] px-1.5 py-0.2 rounded-[2px] font-mono">
+                      {filteredSlips.length} LOGS
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-[#94A3B8]">
+                    <span className="text-[10px]">{isTableDrawerOpen ? 'COLLAPSE [▼]' : 'EXPAND [▲]'}</span>
+                  </div>
+                </div>
+
+                {/* High Density Table Body */}
+                {isTableDrawerOpen && (
+                  <div className="overflow-x-auto max-h-56 bg-[#0D0E11]">
+                    <table className="w-full text-left text-[11px] font-mono">
+                      <thead className="bg-[#15181C] text-[#64748B] hairline-b uppercase text-[10px]">
+                        <tr>
+                          <th className="py-2 px-3">SLIP_ID</th>
+                          <th className="py-2 px-3">TIMESTAMP</th>
+                          <th className="py-2 px-3">ROAD SEGMENT</th>
+                          <th className="py-2 px-3">HAZARD BADGE</th>
+                          <th className="py-2 px-3">IMU PEAK</th>
+                          <th className="py-2 px-3">CONFIDENCE</th>
+                          <th className="py-2 px-3 text-right">COMMUNITY VERIF</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#262B32]">
+                        {filteredSlips.map(slip => {
+                          const isSelected = slip.id === selectedSlipId;
+                          return (
+                            <tr
+                              key={slip.id}
+                              onClick={() => handleSelectSlip(slip)}
+                              className={`cursor-pointer transition ${
+                                isSelected ? 'bg-[#1C2026] text-white font-semibold' : 'hover:bg-[#15181C]/70 text-[#94A3B8]'
+                              }`}
+                            >
+                              <td className="py-2 px-3 text-[#F59E0B]">{slip.id}</td>
+                              <td className="py-2 px-3 tabular-nums text-slate-400">{slip.time}</td>
+                              <td className="py-2 px-3 text-slate-200">{slip.segment}</td>
+                              <td className="py-2 px-3">
+                                <span className={`px-1.5 py-0.5 rounded-[2px] text-[10px] border ${
+                                  slip.severity === 'CRITICAL' ? 'border-[#EF4444] text-[#EF4444] bg-red-950/30' :
+                                  slip.severity === 'MODERATE' ? 'border-[#F59E0B] text-[#F59E0B] bg-amber-950/30' :
+                                  'border-[#10B981] text-[#10B981] bg-emerald-950/30'
+                                }`}>
+                                  [{slip.badge}]
+                                </span>
+                              </td>
+                              <td className="py-2 px-3 tabular-nums font-bold text-white">{slip.gForce}</td>
+                              <td className="py-2 px-3 tabular-nums">{slip.confidence}</td>
+                              <td className="py-2 px-3 text-right tabular-nums">
+                                <span className="text-[#10B981]">▲{slip.confirmCount}</span>
+                                {slip.falseCount > 0 && <span className="text-[#EF4444] ml-2">▼{slip.falseCount}</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ──────────────────────────────────────────────────────────
+                RIGHT PANEL: CROWDSOURCE VERIFICATION DISPATCH (Col 9-12)
+                Physical "Field Incident Slips" Feed
+                ────────────────────────────────────────────────────────── */}
+            <div className="lg:col-span-4 bg-[#15181C] flex flex-col h-full overflow-hidden">
+              
+              {/* Panel Header */}
+              <div className="p-3 bg-[#15181C] hairline-b flex items-center justify-between font-mono text-xs crosshair-corner">
+                <div className="flex items-center space-x-2">
+                  <span className="w-2 h-2 bg-[#EF4444] rounded-none"></span>
+                  <span className="font-display font-extrabold text-white tracking-wider text-sm">
+                    CIVIC DISPATCH DESK
+                  </span>
+                </div>
+                <span className="text-[#F59E0B] text-[11px] font-mono">
+                  ACTIVE FEED [{slips.length}]
+                </span>
+              </div>
+
+              {/* Feed Sub-Nav / Filter Switcher */}
+              <div className="px-3 py-1.5 bg-[#101216] hairline-b flex items-center justify-between text-[11px] font-mono">
+                <span className="text-[#64748B]">FEED MODE:</span>
+                <div className="flex space-x-1">
+                  <button 
+                    onClick={() => setActiveTab('DISPATCH_FEED')}
+                    className={`px-2 py-0.5 rounded-[2px] ${
+                      activeTab === 'DISPATCH_FEED' ? 'bg-[#262B32] text-[#F59E0B] font-bold' : 'text-[#94A3B8]'
+                    }`}
+                  >
+                    INCIDENT SLIPS
+                  </button>
+                  <button 
+                    onClick={() => setActiveTab('FORUM_THREADS')}
+                    className={`px-2 py-0.5 rounded-[2px] ${
+                      activeTab === 'FORUM_THREADS' ? 'bg-[#262B32] text-[#F59E0B] font-bold' : 'text-[#94A3B8]'
+                    }`}
+                  >
+                    MUNI TICKETS
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable Container of Tactile "Field Incident Slips" */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-4 tactical-grid-bg">
+                {slips.map(slip => {
+                  const isSelected = slip.id === selectedSlipId;
+
+                  return (
+                    <div 
+                      key={slip.id}
+                      onClick={() => handleSelectSlip(slip)}
+                      className={`relative bg-[#15181C] border transition-all rounded-[4px] crosshair-corner cursor-pointer ${
+                        isSelected 
+                          ? 'border-[#F59E0B] ring-1 ring-[#F59E0B]/30' 
+                          : 'border-[#262B32] hover:border-[#64748B]'
+                      }`}
+                    >
+                      {/* Physical Perforated Tear Edge (Tactile Feel) */}
+                      <div className="perforated-edge hairline-b"></div>
+
+                      <div className="p-3">
+                        {/* Slip Stamp & Meta Header */}
+                        <div className="flex items-center justify-between font-mono text-[10px] mb-2">
+                          <div className="flex items-center space-x-1.5">
+                            <span className="bg-[#101216] border border-[#262B32] px-1.5 py-0.5 rounded-[2px] font-bold text-[#F59E0B]">
+                              {slip.id}
+                            </span>
+                            <span className="text-slate-400 tabular-nums">{slip.time}</span>
+                          </div>
+                          
+                          {/* Threaded Municipal Status Tag */}
+                          <div className={`px-2 py-0.5 rounded-[2px] text-[10px] font-mono font-bold border ${slip.statusColor}`}>
+                            {slip.statusBadge}
+                          </div>
+                        </div>
+
+                        {/* Road Segment Title */}
+                        <h3 className="font-display font-bold text-white text-sm tracking-wide mb-2">
+                          {slip.segment}
+                        </h3>
+
+                        {/* Dashcam Thumbnail & HUD Telemetry Grid */}
+                        <div className="grid grid-cols-12 gap-2 mb-3">
+                          {/* Left: Dashcam/Phone Image Thumbnail */}
+                          <div className="col-span-5 relative rounded-[2px] overflow-hidden border border-[#262B32] bg-black h-24">
+                            <img 
+                              src={slip.thumb} 
+                              alt="Road Hazard Camera Feed" 
+                              className="w-full h-full object-cover opacity-90 hover:opacity-100 transition"
+                            />
+                            <div className="absolute bottom-0 inset-x-0 bg-black/80 px-1 py-0.5 text-[8px] font-mono text-[#F59E0B] truncate">
+                              CAM_SURV // LENS-01
+                            </div>
+                          </div>
+
+                          {/* Right: Telemetry Matrix HUD */}
+                          <div className="col-span-7 bg-[#101216] border border-[#262B32] p-2 rounded-[2px] text-[10px] font-mono flex flex-col justify-between">
+                            <div className="flex justify-between border-b border-[#262B32]/60 pb-1">
+                              <span className="text-[#64748B]">SEVERITY:</span>
+                              <span className={`font-bold ${
+                                slip.severity === 'CRITICAL' ? 'text-[#EF4444]' :
+                                slip.severity === 'MODERATE' ? 'text-[#F59E0B]' : 'text-[#10B981]'
+                              }`}>
+                                [{slip.badge}]
+                              </span>
+                            </div>
+                            <div className="flex justify-between border-b border-[#262B32]/60 py-1">
+                              <span className="text-[#64748B]">DEPTH // WIDTH:</span>
+                              <span className="text-white font-bold tabular-nums">{slip.depthMm}mm / {slip.widthCm}cm</span>
+                            </div>
+                            <div className="flex justify-between border-b border-[#262B32]/60 py-1">
+                              <span className="text-[#64748B]">IMU PEAK G:</span>
+                              <span className="text-[#38BDF8] font-bold tabular-nums">{slip.gForce}</span>
+                            </div>
+                            <div className="flex justify-between pt-1">
+                              <span className="text-[#64748B]">CONFIDENCE:</span>
+                              <span className="text-emerald-400 font-bold tabular-nums">{slip.confidence}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dispatch Note */}
+                        <div className="bg-[#101216] border-l-2 border-[#F59E0B] px-2.5 py-1.5 text-[11px] text-[#CBD5E1] font-body mb-3">
+                          {slip.dispatchNote}
+                        </div>
+
+                        {/* Geostamp */}
+                        <div className="text-[10px] font-mono text-[#64748B] mb-3 flex items-center justify-between">
+                          <span>SOURCE: {slip.reportedBy}</span>
+                          <span className="tabular-nums text-slate-400">{slip.coords}</span>
+                        </div>
+
+                        {/* Upvote Toggle (▲ Confirm Hazard / ▼ False Positive) */}
+                        <div className="bg-[#101216] border border-[#262B32] p-2 rounded-[4px] flex items-center justify-between font-mono text-xs">
+                          <span className="text-[#64748B] text-[10px]">CROWD VERIFICATION:</span>
+                          <div className="flex items-center space-x-2">
+                            {/* Confirm Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleVote(slip.id, 'CONFIRM');
+                              }}
+                              className={`px-2.5 py-1 rounded-[3px] border text-[11px] font-bold flex items-center space-x-1.5 transition ${
+                                slip.userVote === 'CONFIRM'
+                                  ? 'bg-[#F59E0B] text-black border-[#F59E0B]'
+                                  : 'bg-[#15181C] text-[#F59E0B] border-[#F59E0B]/40 hover:bg-[#F59E0B]/10'
+                              }`}
+                            >
+                              <span>▲ CONFIRM HAZARD</span>
+                              <span className="tabular-nums">({slip.confirmCount})</span>
+                            </button>
+
+                            {/* False Positive Button */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleVote(slip.id, 'FALSE');
+                              }}
+                              className={`px-2 py-1 rounded-[3px] border text-[11px] font-bold flex items-center space-x-1 transition ${
+                                slip.userVote === 'FALSE'
+                                  ? 'bg-[#EF4444] text-white border-[#EF4444]'
+                                  : 'bg-[#15181C] text-[#94A3B8] border-[#262B32] hover:text-[#EF4444] hover:border-[#EF4444]/40'
+                              }`}
+                            >
+                              <span>▼ FALSE</span>
+                              <span className="tabular-nums">({slip.falseCount})</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Threaded Municipal Comments */}
+                        {slip.comments && slip.comments.length > 0 && (
+                          <div className="mt-3 pt-2 hairline-t space-y-1.5 font-mono text-[10px]">
+                            <span className="text-[#64748B] uppercase font-bold text-[9px]">THREADED DISPATCH COMMENTS:</span>
+                            {slip.comments.map((c, idx) => (
+                              <div key={idx} className="bg-[#101216] border border-[#262B32]/70 p-1.5 rounded-[2px]">
+                                <div className="flex justify-between text-[#F59E0B] font-bold">
+                                  <span>{c.user}</span>
+                                  <span className="text-slate-500 tabular-nums">{c.time}</span>
+                                </div>
+                                <div className="text-slate-300 font-body text-[11px] mt-0.5">{c.msg}</div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Inline Comment Ingest */}
+                        <div className="mt-2 flex items-center space-x-1" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="text" 
+                            placeholder="Add surveyor remark..." 
+                            value={commentInputs[slip.id] || ""}
+                            onChange={(e) => setCommentInputs({ ...commentInputs, [slip.id]: e.target.value })}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleAddComment(slip.id); }}
+                            className="flex-1 bg-[#101216] border border-[#262B32] px-2 py-1 text-[11px] text-white rounded-[2px] font-body focus:outline-none focus:border-[#F59E0B]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleAddComment(slip.id)}
+                            className="bg-[#262B32] hover:bg-[#F59E0B] hover:text-black text-slate-300 px-2 py-1 text-[10px] font-mono rounded-[2px] transition font-bold"
+                          >
+                            POST
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Ingest Ribbon at bottom of sidebar */}
+              <div className="p-2.5 bg-[#101216] hairline-t font-mono text-[10px] flex items-center justify-between text-[#64748B]">
+                <span>MUNICIPAL SYNC: <strong className="text-emerald-400">PMC API ONLINE</strong></span>
+                <span>ESC-QUEUE: <strong className="text-[#EF4444]">1 PRIORITY</strong></span>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    // Render the React Tactical Dashboard
+    ReactDOM.createRoot(document.getElementById('root')).render(<TacticalTelemetryApp />);
+  </script>
+</body>
+</html>

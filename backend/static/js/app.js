@@ -85,12 +85,15 @@ function initMap() {
         maxNativeZoom: 18,
     });
 
-    const tacticalGroup = L.layerGroup([darkBase, darkLabels]).addTo(map);
+    const tacticalGroup = L.layerGroup([darkBase, darkLabels]);
+    
+    // Satellite Recon is DEFAULT
+    satellite.addTo(map);
 
-    // Layer control for Tactical Dark vs Satellite Recon
+    // Layer control for Satellite Recon vs Tactical Dark
     L.control.layers({
+        "🛰 SATELLITE RECON (Default)": satellite,
         "◈ TACTICAL DARK": tacticalGroup,
-        "🛰 SATELLITE RECON": satellite,
     }, null, { position: 'bottomright' }).addTo(map);
 
     const hudCoords = document.getElementById('mapHudCoords');
