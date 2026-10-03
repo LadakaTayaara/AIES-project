@@ -27,6 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initUploadForm();
     initFilterChips();
     initModal();
+    initBenchmarksModal();
+    initForum();
+    initDemoSamples();
     checkApiHealth();
     loadDashboardData();
 
@@ -186,11 +189,29 @@ function addMapMarker(report) {
 async function checkApiHealth() {
     const dot = document.getElementById('apiStatus');
     const text = document.getElementById('apiStatusText');
+    const teleModel = document.getElementById('teleModel');
+    const teleEngine = document.getElementById('teleEngine');
+    const teleLatency = document.getElementById('teleLatency');
+    const teleBenchmark = document.getElementById('teleBenchmark');
+
     try {
         const res = await fetch(`${API_BASE}/api/health`);
         const data = await res.json();
         dot.className = 'status-dot online';
-        text.textContent = `TELEMETRY SYNC · ${data.model || 'RF-DETR 2.0'}`;
+        text.textContent = `SYNCED · ${data.model_name || 'YOLO11s PCI'}`;
+
+        if (teleModel && data.model_name) {
+            teleModel.textContent = data.model_name;
+        }
+        if (teleEngine && data.engine) {
+            teleEngine.textContent = data.engine;
+        }
+        if (teleLatency && data.latency_ms != null) {
+            teleLatency.textContent = `${data.latency_ms} ms`;
+        }
+        if (teleBenchmark && data.benchmark_map50 != null) {
+            teleBenchmark.textContent = `${data.benchmark_map50}% mAP@50`;
+        }
     } catch {
         dot.className = 'status-dot offline';
         text.textContent = 'TELEMETRY OFFLINE';
@@ -578,4 +599,480 @@ function animateCounter(elementId, target, isFloat = false) {
     }
 
     requestAnimationFrame(update);
+}
+
+// ══════════════════════════════════════════════════════════
+// Quick Test Demo Imagery
+// ══════════════════════════════════════════════════════════
+function initDemoSamples() {
+    const chips = document.querySelectorAll('.sample-chip');
+    chips.forEach(chip => {
+        chip.addEventListener('click', async () => {
+            const sampleType = chip.dataset.sample;
+            let sampleUrl = '';
+            let lat = 18.5204;
+            let lng = 73.8567;
+            let desc = '';
+            let filename = '';
+
+            if (sampleType === 'severe') {
+                sampleUrl = '/static/samples/sample_severe.jpg';
+                lat = 18.5312;
+                lng = 73.8445;
+                desc = 'Deep structural crater along SB Road near Symbiosis corridor';
+                filename = 'sample_severe.jpg';
+            } else if (sampleType === 'moderate') {
+                sampleUrl = '/static/samples/sample_moderate.jpg';
+                lat = 18.5204;
+                lng = 73.8567;
+                desc = 'Pavement rim deformation defect along JM Road';
+                filename = 'sample_moderate.jpg';
+            } else if (sampleType === 'minor') {
+                sampleUrl = '/static/samples/sample_minor.jpg';
+                lat = 18.5089;
+                lng = 73.8291;
+                desc = 'Surface aggregate stripping and shallow weathering near Karve Road';
+                filename = 'sample_minor.jpg';
+            }
+
+            try {
+                showToast('info', `Loading ${sampleType.toUpperCase()} test imagery...`);
+                const res = await fetch(sampleUrl);
+                const blob = await res.blob();
+                const file = new File([blob], filename, { type: 'image/jpeg' });
+
+                setPreview(file);
+                document.getElementById('latInput').value = lat.toFixed(4);
+                document.getElementById('lngInput').value = lng.toFixed(4);
+                document.getElementById('descInput').value = desc;
+
+                showToast('success', `STAGED: [${sampleType.toUpperCase()}] Ready! Click "Run Inference & Report".`);
+            } catch (err) {
+                console.error('Failed to load sample:', err);
+                showToast('error', 'Failed to load test sample image');
+            }
+        });
+    });
+}
+
+// ══════════════════════════════════════════════════════════
+// Research Paper Benchmarks Modal
+// ══════════════════════════════════════════════════════════
+function initBenchmarksModal() {
+    const modal = document.getElementById('benchmarksModal');
+    const openBtn = document.getElementById('openBenchmarksBtn');
+    const closeBtn = document.getElementById('benchmarksClose');
+    const tabBtns = modal ? modal.querySelectorAll('.tab-btn') : [];
+
+    if (!modal) return;
+
+    if (openBtn) {
+        openBtn.addEventListener('click', () => {
+            modal.style.display = 'flex';
+        });
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }
+
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.style.display = 'none';
+    });
+
+    // Tab switching
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const targetTab = btn.dataset.tab;
+            modal.querySelectorAll('.tab-pane').forEach(pane => {
+                if (pane.id === targetTab) {
+                    pane.style.display = 'block';
+                } else {
+                    pane.style.display = 'none';
+                }
+            });
+        });
+    });
+
+    // Copy LaTeX Table 1
+    const copyT1 = document.getElementById('copyLatexTable1');
+    if (copyT1) {
+        copyT1.addEventListener('click', () => {
+            const latex = `\\begin{table*}[t]
+\\centering
+\\caption{Performance Comparison with Baseline Road Pothole Detection Models}
+\\label{tab:pothole_comparison}
+\\begin{tabular}{lcccccc}
+\\hline
+\\textbf{Model / Study} & \\textbf{mAP@0.5 (\\%)} & \\textbf{mAP@0.5:0.95 (\\%)} & \\textbf{Precision (\\%)} & \\textbf{Recall (\\%)} & \\textbf{Severity Grading} \\\\
+\\hline
+YOLOv8n (Kumari et al. 2023) & 78.20 & 45.60 & 81.40 & 72.70 & No (1-class) \\\\
+YOLOv8s (Kumari et al. 2023) & 72.70 & 49.10 & 81.40 & 72.70 & No (1-class) \\\\
+YOLOv8m (Kumari et al. 2023) & 78.70 & 49.50 & 81.40 & 72.70 & No (1-class) \\\\
+YOLOv8l (Kumari et al. 2023) & 78.70 & 50.20 & 83.20 & 73.00 & No (1-class) \\\\
+YOLOv8x (Kumari et al. 2023) & 78.50 & 51.40 & 82.60 & 73.00 & No (1-class) \\\\
+\\textbf{Our Model (Binary Pothole)} & \\textbf{79.12} & \\textbf{48.95} & \\textbf{78.78} & \\textbf{72.33} & \\textbf{No (Direct Baseline)} \\\\
+\\textbf{Our Model (3-Class Severity)} & \\textbf{73.16} & \\textbf{45.80} & \\textbf{80.04} & \\textbf{64.51} & \\textbf{Yes (ASTM 3-Tier)} \\\\
+\\hline
+\\end{tabular}
+\\end{table*}`;
+            navigator.clipboard.writeText(latex).then(() => {
+                showToast('success', 'Table 1 LaTeX copied to clipboard!');
+            });
+        });
+    }
+
+    // Copy LaTeX Table 2
+    const copyT2 = document.getElementById('copyLatexTable2');
+    if (copyT2) {
+        copyT2.addEventListener('click', () => {
+            const latex = `\\begin{table}[h]
+\\centering
+\\caption{Per-Class Severity Detection Performance Under ASTM D6433 Grading}
+\\label{tab:per_class_severity}
+\\begin{tabular}{lcccc}
+\\hline
+\\textbf{Severity Level} & \\textbf{Precision (\\%)} & \\textbf{Recall (\\%)} & \\textbf{mAP@0.5 (\\%)} & \\textbf{F1-Score (\\%)} \\\\
+\\hline
+Minor & 81.99 & 51.75 & 64.30 & 63.45 \\\\
+Moderate & 81.74 & 54.98 & 70.30 & 65.74 \\\\
+Severe & 76.39 & 86.79 & 84.90 & 81.26 \\\\
+\\hline
+\\textbf{Overall / Mean} & \\textbf{80.04} & \\textbf{64.51} & \\textbf{73.16} & \\textbf{71.44} \\\\
+\\hline
+\\end{tabular}
+\\end{table}`;
+            navigator.clipboard.writeText(latex).then(() => {
+                showToast('success', 'Table 2 LaTeX copied to clipboard!');
+            });
+        });
+    }
+
+    // Copy Abstract Text
+    const copyAbstract = document.getElementById('copyAbstractText');
+    if (copyAbstract) {
+        copyAbstract.addEventListener('click', () => {
+            const text = document.getElementById('abstractTextContent').textContent.trim();
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('success', 'Abstract text copied to clipboard!');
+            });
+        });
+    }
+}
+
+// ══════════════════════════════════════════════════════════
+// Civic Crowdsourcing Forum
+// ══════════════════════════════════════════════════════════
+let currentForumCategory = 'all';
+let currentActivePostId = null;
+
+function initForum() {
+    const forumModal = document.getElementById('forumModal');
+    const openForumBtn = document.getElementById('openForumBtn');
+    const forumClose = document.getElementById('forumClose');
+    const openNewPostBtn = document.getElementById('openNewPostBtn');
+    const newPostModal = document.getElementById('newPostModal');
+    const newPostClose = document.getElementById('newPostClose');
+    const backBtn = document.getElementById('backToForumListBtn');
+    const newPostForm = document.getElementById('newPostForm');
+    const newCommentForm = document.getElementById('newCommentForm');
+    const detailUpvoteBtn = document.getElementById('detailUpvoteBtn');
+
+    if (!forumModal) return;
+
+    if (openForumBtn) {
+        openForumBtn.addEventListener('click', () => {
+            forumModal.style.display = 'flex';
+            document.getElementById('forumListView').style.display = 'block';
+            document.getElementById('forumDetailView').style.display = 'none';
+            loadForumPosts();
+        });
+    }
+
+    if (forumClose) {
+        forumClose.addEventListener('click', () => {
+            forumModal.style.display = 'none';
+        });
+    }
+
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            document.getElementById('forumDetailView').style.display = 'none';
+            document.getElementById('forumListView').style.display = 'block';
+            loadForumPosts();
+        });
+    }
+
+    if (openNewPostBtn) {
+        openNewPostBtn.addEventListener('click', () => {
+            newPostModal.style.display = 'flex';
+        });
+    }
+
+    if (newPostClose) {
+        newPostClose.addEventListener('click', () => {
+            newPostModal.style.display = 'none';
+        });
+    }
+
+    if (newPostModal) {
+        newPostModal.addEventListener('click', (e) => {
+            if (e.target === newPostModal) newPostModal.style.display = 'none';
+        });
+    }
+
+    // Category chips
+    const chips = forumModal.querySelectorAll('.forum-chip');
+    chips.forEach(chip => {
+        chip.addEventListener('click', () => {
+            chips.forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            currentForumCategory = chip.dataset.category;
+            loadForumPosts();
+        });
+    });
+
+    // Create New Post
+    if (newPostForm) {
+        newPostForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('postTitleInput').value.trim();
+            const category = document.getElementById('postCategorySelect').value;
+            const severity_tag = document.getElementById('postSeveritySelect').value;
+            const author_name = document.getElementById('postAuthorInput').value.trim() || 'Citizen Reporter';
+            const content = document.getElementById('postContentInput').value.trim();
+
+            if (!title || !content) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/forum/posts`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title, category, severity_tag, author_name, content }),
+                });
+
+                if (!res.ok) throw new Error('Failed to create post');
+                const newPost = await res.json();
+
+                newPostModal.style.display = 'none';
+                newPostForm.reset();
+                showToast('success', 'Discussion thread published!');
+                openPostDetail(newPost.id);
+            } catch (err) {
+                console.error('Post error:', err);
+                showToast('error', err.message || 'Failed to submit thread');
+            }
+        });
+    }
+
+    // Submit Comment
+    if (newCommentForm) {
+        newCommentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentActivePostId) return;
+
+            const content = document.getElementById('commentContentInput').value.trim();
+            const author_name = document.getElementById('commentAuthorInput').value.trim() || 'Community Member';
+
+            if (!content) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/forum/posts/${currentActivePostId}/comments`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content, author_name }),
+                });
+
+                if (!res.ok) throw new Error('Failed to post reply');
+                const comment = await res.json();
+
+                document.getElementById('commentContentInput').value = '';
+                showToast('success', 'Reply posted!');
+
+                // Append comment to list
+                const commentsList = document.getElementById('detailCommentsList');
+                const commentEl = document.createElement('div');
+                commentEl.className = 'comment-card';
+                commentEl.innerHTML = `
+                    <div class="comment-header">
+                        <span class="comment-author">${escapeHtml(comment.author_name)}</span>
+                        <span class="comment-time">JUST NOW</span>
+                    </div>
+                    <div class="comment-text">${escapeHtml(comment.content)}</div>
+                `;
+                commentsList.appendChild(commentEl);
+
+                // Update count
+                const countEl = document.getElementById('detailCommentsCount');
+                if (countEl) countEl.textContent = parseInt(countEl.textContent || '0') + 1;
+
+            } catch (err) {
+                console.error('Comment error:', err);
+                showToast('error', 'Failed to submit comment');
+            }
+        });
+    }
+
+    // Upvote
+    if (detailUpvoteBtn) {
+        detailUpvoteBtn.addEventListener('click', async () => {
+            if (!currentActivePostId || detailUpvoteBtn.classList.contains('upvoted')) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/forum/posts/${currentActivePostId}/upvote`, {
+                    method: 'POST',
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    document.getElementById('detailUpvoteCount').textContent = data.upvotes;
+                    detailUpvoteBtn.classList.add('upvoted');
+                    showToast('success', 'Upvoted! Urgency raised for civic review.');
+                }
+            } catch (err) {
+                console.error('Upvote error:', err);
+            }
+        });
+    }
+}
+
+async function loadForumPosts() {
+    const listEl = document.getElementById('forumPostsList');
+    if (!listEl) return;
+
+    try {
+        const url = `${API_BASE}/api/forum/posts?category=${encodeURIComponent(currentForumCategory)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        const posts = data.posts || [];
+
+        // Update badge in navbar
+        const badge = document.getElementById('forumCountBadge');
+        if (badge) badge.textContent = `${posts.length} Posts`;
+
+        if (posts.length === 0) {
+            listEl.innerHTML = `
+                <div class="reports-empty">
+                    <p>No community threads found in this category.</p>
+                </div>
+            `;
+            return;
+        }
+
+        listEl.innerHTML = posts.map(p => {
+            const sev = (p.severity_tag || 'unverified').toLowerCase();
+            const sevClass = getSevClass(sev);
+            const time = p.created_at ? timeAgo(new Date(p.created_at + 'Z')) : 'RECENT';
+            const catMap = {
+                identification: '🔍 Identification',
+                hazard: '⚠ Hazard Alert',
+                resolved: '✓ Fix Verified',
+                discussion: '💬 Civic Discussion',
+            };
+            const catName = catMap[p.category] || p.category;
+
+            return `
+                <div class="forum-card" onclick="openPostDetail('${p.id}')">
+                    <div class="forum-card-header">
+                        <div class="forum-badges">
+                            <span class="forum-badge-cat">${catName}</span>
+                            <span class="report-severity-tag ${sevClass}">${sev.toUpperCase()}</span>
+                        </div>
+                        <span class="forum-card-time tabular-nums">${time}</span>
+                    </div>
+                    <div class="forum-card-title">${escapeHtml(p.title)}</div>
+                    <div class="forum-card-desc">${escapeHtml(p.content)}</div>
+                    <div class="forum-card-footer">
+                        <span class="forum-card-author">👤 ${escapeHtml(p.author_name)}</span>
+                        <div class="forum-card-stats">
+                            <span>▲ ${p.upvotes || 0}</span>
+                            <span>💬 ${p.comments_count || 0}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.error('Failed to load forum posts:', err);
+        listEl.innerHTML = `
+            <div class="reports-empty">
+                <p>Failed to load discussions</p>
+            </div>
+        `;
+    }
+}
+
+async function openPostDetail(postId) {
+    currentActivePostId = postId;
+    const forumModal = document.getElementById('forumModal');
+    if (forumModal) forumModal.style.display = 'flex';
+
+    document.getElementById('forumListView').style.display = 'none';
+    const detailView = document.getElementById('forumDetailView');
+    detailView.style.display = 'block';
+
+    const upvoteBtn = document.getElementById('detailUpvoteBtn');
+    if (upvoteBtn) upvoteBtn.classList.remove('upvoted');
+
+    try {
+        const res = await fetch(`${API_BASE}/api/forum/posts/${postId}`);
+        if (!res.ok) throw new Error('Post not found');
+        const post = await res.json();
+
+        document.getElementById('detailTitle').textContent = post.title;
+        const time = post.created_at ? timeAgo(new Date(post.created_at + 'Z')) : 'RECENT';
+        document.getElementById('detailMeta').textContent = `Posted by ${post.author_name} · ${time}`;
+        document.getElementById('detailContent').textContent = post.content;
+        document.getElementById('detailUpvoteCount').textContent = post.upvotes || 0;
+
+        // Tags
+        const tagsRow = document.getElementById('detailTagsRow');
+        const sev = (post.severity_tag || 'unverified').toLowerCase();
+        const sevClass = getSevClass(sev);
+        tagsRow.innerHTML = `
+            <span class="forum-badge-cat">${post.category.toUpperCase()}</span>
+            <span class="report-severity-tag ${sevClass}">${sev.toUpperCase()}</span>
+        `;
+
+        // Comments
+        const comments = post.comments || [];
+        document.getElementById('detailCommentsCount').textContent = comments.length;
+        const commentsList = document.getElementById('detailCommentsList');
+
+        if (comments.length === 0) {
+            commentsList.innerHTML = `<p style="font-size:0.72rem; color:var(--text-tertiary); padding: 8px 0;">No comments yet. Be the first to verify or respond!</p>`;
+        } else {
+            commentsList.innerHTML = comments.map(c => {
+                const cTime = c.created_at ? timeAgo(new Date(c.created_at + 'Z')) : '';
+                return `
+                    <div class="comment-card">
+                        <div class="comment-header">
+                            <span class="comment-author">${escapeHtml(c.author_name)}</span>
+                            <span class="comment-time tabular-nums">${cTime}</span>
+                        </div>
+                        <div class="comment-text">${escapeHtml(c.content)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+    } catch (err) {
+        console.error('Failed to open post detail:', err);
+        showToast('error', 'Failed to load thread details');
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return str
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
 }

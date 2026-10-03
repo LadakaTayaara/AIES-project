@@ -7,9 +7,10 @@
 # from YOLO format to COCO format if needed.
 
 # YOLO format paths (for reference / fallback)
-path: ./yolo_dataset
+path: C:/Users/Abhinandan Singh/Desktop/COLLEGE STUFF/2AIES/miniproj/ml/data/yolo_dataset
 train: images/train
 val: images/val
+test: images/test
 
 # Number of classes
 nc: 3

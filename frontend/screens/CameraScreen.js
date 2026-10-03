@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Dimensions, Animated, Easing, Platform } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useIsFocused } from '@react-navigation/native';
 import * as Location from 'expo-location';
-import { Crosshair, Navigation, Aperture, AlertTriangle, CheckCircle } from 'lucide-react-native';
+import { Maximize2, Navigation, Aperture, AlertTriangle, CheckCircle, Info, Compass } from 'lucide-react-native';
 import axios from 'axios';
 import { theme } from '../themes';
 import Constants from 'expo-constants';
@@ -28,8 +29,11 @@ const BACKEND_URL = getBackendUrl();
 const SUBMIT_URL = `${BACKEND_URL}/api/reports/submit`;
 
 const { width, height } = Dimensions.get('window');
+const FRAME_WIDTH = Math.min(width * 0.85, 340);
+const FRAME_HEIGHT = Math.min(height * 0.44, 360);
 
 export default function CameraScannerScreen() {
+    const isFocused = useIsFocused();
     const [permission, requestPermission] = useCameraPermissions();
     const [cameraFacing, setCameraFacing] = useState('back');
     const [location, setLocation] = useState(null);
@@ -188,7 +192,7 @@ export default function CameraScannerScreen() {
 
     const scanLineTranslateY = scanAnim.interpolate({
         inputRange: [0, 1],
-        outputRange: [0, 280],
+        outputRange: [0, FRAME_HEIGHT],
     });
 
     const getSeverityColor = (sev) => {
@@ -203,33 +207,65 @@ export default function CameraScannerScreen() {
 
     return (
         <View style={styles.container}>
-            <CameraView style={styles.camera} facing={cameraFacing} ref={cameraRef}>
+            {/* CameraView rendered when tab is focused, filling container */}
+            {isFocused && (
+                <CameraView
+                    style={styles.camera}
+                    facing={cameraFacing}
+                    ref={cameraRef}
+                    mode="picture"
+                />
+            )}
 
-                {/* Top Telemetry Strip */}
-                <View style={styles.hudTop}>
-                    <View style={styles.hudBadge}>
-                        <View style={styles.liveDot} />
-                        <Text style={styles.hudLabel}>RF-DETR 2.0</Text>
-                    </View>
-                    {location && (
-                        <View style={styles.hudBadge}>
-                            <Navigation color={theme.colors.textSecondary} size={11} strokeWidth={2} />
-                            <Text style={styles.hudCoords}>
-                                {location.coords.latitude.toFixed(5)}, {location.coords.longitude.toFixed(5)}
-                            </Text>
-                        </View>
-                    )}
+            {/* Top Telemetry Strip */}
+            <View style={styles.hudTop} pointerEvents="box-none">
+                <View style={styles.hudBadge}>
+                    <View style={styles.liveDot} />
+                    <Text style={styles.hudLabel}>YOLO11s • ASTM PCI</Text>
                 </View>
+                {location && (
+                    <View style={styles.hudBadge}>
+                        <Navigation color={theme.colors.textSecondary} size={11} strokeWidth={2} />
+                        <Text style={styles.hudCoords}>
+                            {location.coords.latitude.toFixed(5)}, {location.coords.longitude.toFixed(5)}
+                        </Text>
+                    </View>
+                )}
+            </View>
 
-                {/* Technical Reticle */}
-                <View style={styles.scannerWrapper}>
-                    <View style={styles.scannerBox}>
-                        <Crosshair
-                            color={isScanning ? theme.colors.primary : 'rgba(255, 255, 255, 0.4)'}
-                            size={32}
-                            strokeWidth={1.5}
-                        />
+            {/* Road Surface Framing Guide with Clear Boundaries (pointerEvents='none' prevents touch blocking) */}
+            <View style={styles.scannerWrapper} pointerEvents="none">
+                {/* Top Mask */}
+                <View style={styles.maskTop} />
 
+                <View style={styles.scannerMiddleRow}>
+                    {/* Left Mask */}
+                    <View style={styles.maskSide} />
+
+                    {/* High-Precision Road Capture Box */}
+                    <View style={[styles.captureFrame, isScanning && styles.captureFrameActive]}>
+                        {/* Top Badge: Capture Zone Indicator */}
+                        <View style={styles.frameHeader}>
+                            <View style={styles.frameHeaderBadge}>
+                                <View style={[styles.frameDot, isScanning && styles.frameDotScanning]} />
+                                <Text style={styles.frameHeaderText}>
+                                    {isScanning ? 'ANALYZING ROAD SURFACE' : 'TARGET ROAD CAPTURE ZONE'}
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Upper Horizon Guideline (Keep Sky / Horizon Above This Line) */}
+                        <View style={styles.horizonLineContainer}>
+                            <View style={styles.horizonLine} />
+                            <Text style={styles.horizonLabel}>ROAD HORIZON — KEEP PAVEMENT BELOW</Text>
+                            <View style={styles.horizonLine} />
+                        </View>
+
+                        {/* Lateral Alignment Notches */}
+                        <View style={[styles.notch, styles.notchLeft]} />
+                        <View style={[styles.notch, styles.notchRight]} />
+
+                        {/* Scanning Laser Beam */}
                         {isScanning && (
                             <Animated.View
                                 style={[
@@ -239,93 +275,108 @@ export default function CameraScannerScreen() {
                             />
                         )}
 
-                        {/* Precision corner brackets */}
-                        <View style={[styles.corner, styles.topLeft]} />
-                        <View style={[styles.corner, styles.topRight]} />
-                        <View style={[styles.corner, styles.bottomLeft]} />
-                        <View style={[styles.corner, styles.bottomRight]} />
-                    </View>
-                </View>
+                        {/* Heavy Technical Corner Brackets */}
+                        <View style={[styles.corner, styles.topLeft, isScanning && styles.cornerActive]} />
+                        <View style={[styles.corner, styles.topRight, isScanning && styles.cornerActive]} />
+                        <View style={[styles.corner, styles.bottomLeft, isScanning && styles.cornerActive]} />
+                        <View style={[styles.corner, styles.bottomRight, isScanning && styles.cornerActive]} />
 
-                {/* Error Banner */}
-                {errorMsg && !isScanning && (
-                    <View style={styles.errorPanel}>
-                        <AlertTriangle color={theme.colors.critical} size={16} strokeWidth={2} />
-                        <Text style={styles.errorText}>{errorMsg}</Text>
-                        <TouchableOpacity onPress={() => setErrorMsg(null)}>
-                            <Text style={styles.dismissText}>Dismiss</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
-
-                {/* Analysis Modal Sheet */}
-                {scanResult && !isScanning && (
-                    <View style={styles.resultPanel}>
-                        <View style={styles.resultHeader}>
-                            <View style={styles.resultHeaderLeft}>
-                                <Text style={styles.resultTitle}>DETECTION REPORT</Text>
-                                <Text style={styles.resultSubtitle}>
-                                    #{scanResult.report_id ? scanResult.report_id.substring(0, 8).toUpperCase() : 'TELEMETRY'}
-                                </Text>
-                            </View>
-                            <View style={[
-                                styles.severityPill,
-                                { backgroundColor: scanResult.severity === 'severe' ? theme.colors.criticalSubtle : theme.colors.warningSubtle }
-                            ]}>
-                                <Text style={[
-                                    styles.severityPillText,
-                                    { color: getSeverityColor(scanResult.severity) }
-                                ]}>
-                                    {(scanResult.severity || 'Minor').toUpperCase()}
-                                </Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.separator} />
-
-                        <View style={styles.resultRow}>
-                            <Text style={styles.resultLabel}>CONFIDENCE</Text>
-                            <Text style={styles.resultValue}>
-                                {scanResult.confidence ? `${(scanResult.confidence * 100).toFixed(1)}%` : '--'}
+                        {/* Bottom Instruction Bar */}
+                        <View style={styles.frameFooter}>
+                            <Text style={styles.frameFooterTitle}>
+                                FRAME ENTIRE POTHOLE + ~1M ASPHALT MARGIN
+                            </Text>
+                            <Text style={styles.frameFooterSub}>
+                                TILT PHONE ~45° DOWNWARD • AVOID EXCESS SKY/VEHICLES
                             </Text>
                         </View>
-                        <View style={styles.resultRow}>
-                            <Text style={styles.resultLabel}>OBJECT COUNT</Text>
-                            <Text style={styles.resultValue}>{scanResult.num_detections || 1}</Text>
-                        </View>
-                        <View style={styles.resultRow}>
-                            <Text style={styles.resultLabel}>MODEL LATENCY</Text>
-                            <Text style={styles.resultValue}>18.4 ms</Text>
-                        </View>
-
-                        <TouchableOpacity
-                            style={styles.acknowledgeBtn}
-                            onPress={() => setScanResult(null)}
-                            activeOpacity={0.8}
-                        >
-                            <Text style={styles.acknowledgeBtnText}>ACKNOWLEDGE & SYNC</Text>
-                        </TouchableOpacity>
                     </View>
-                )}
 
-                {/* Precision Bottom Trigger */}
-                <View style={styles.controlsBottom}>
-                    <TouchableOpacity
-                        style={[styles.captureBtn, isScanning && styles.captureBtnActive]}
-                        onPress={handleScan}
-                        disabled={isScanning}
-                        activeOpacity={0.8}
-                    >
-                        <View style={[styles.captureBtnInner, isScanning && styles.captureBtnInnerActive]}>
-                            <Aperture color={isScanning ? '#09090b' : '#fafafa'} size={22} strokeWidth={2} />
-                        </View>
-                    </TouchableOpacity>
-                    <Text style={styles.captureLabel}>
-                        {isScanning ? 'PROCESSING FRAME' : 'TRIGGER SCAN'}
-                    </Text>
+                    {/* Right Mask */}
+                    <View style={styles.maskSide} />
                 </View>
 
-            </CameraView>
+                {/* Bottom Mask */}
+                <View style={styles.maskBottom} />
+            </View>
+
+            {/* Error Banner */}
+            {errorMsg && !isScanning && (
+                <View style={styles.errorPanel}>
+                    <AlertTriangle color={theme.colors.critical} size={16} strokeWidth={2} />
+                    <Text style={styles.errorText}>{errorMsg}</Text>
+                    <TouchableOpacity onPress={() => setErrorMsg(null)}>
+                        <Text style={styles.dismissText}>Dismiss</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* Analysis Modal Sheet */}
+            {scanResult && !isScanning && (
+                <View style={styles.resultPanel}>
+                    <View style={styles.resultHeader}>
+                        <View style={styles.resultHeaderLeft}>
+                            <Text style={styles.resultTitle}>DETECTION REPORT</Text>
+                            <Text style={styles.resultSubtitle}>
+                                #{scanResult.report_id ? scanResult.report_id.substring(0, 8).toUpperCase() : 'TELEMETRY'}
+                            </Text>
+                        </View>
+                        <View style={[
+                            styles.severityPill,
+                            { backgroundColor: scanResult.severity === 'severe' ? theme.colors.criticalSubtle : theme.colors.warningSubtle }
+                        ]}>
+                            <Text style={[
+                                styles.severityPillText,
+                                { color: getSeverityColor(scanResult.severity) }
+                            ]}>
+                                {(scanResult.severity || 'Minor').toUpperCase()}
+                            </Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.separator} />
+
+                    <View style={styles.resultRow}>
+                        <Text style={styles.resultLabel}>CONFIDENCE</Text>
+                        <Text style={styles.resultValue}>
+                            {scanResult.confidence ? `${(scanResult.confidence * 100).toFixed(1)}%` : '--'}
+                        </Text>
+                    </View>
+                    <View style={styles.resultRow}>
+                        <Text style={styles.resultLabel}>OBJECT COUNT</Text>
+                        <Text style={styles.resultValue}>{scanResult.num_detections || 1}</Text>
+                    </View>
+                    <View style={styles.resultRow}>
+                        <Text style={styles.resultLabel}>MODEL LATENCY</Text>
+                        <Text style={styles.resultValue}>18.4 ms</Text>
+                    </View>
+
+                    <TouchableOpacity
+                        style={styles.acknowledgeBtn}
+                        onPress={() => setScanResult(null)}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.acknowledgeBtnText}>ACKNOWLEDGE & SYNC</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* Precision Bottom Trigger */}
+            <View style={styles.controlsBottom}>
+                <TouchableOpacity
+                    style={[styles.captureBtn, isScanning && styles.captureBtnActive]}
+                    onPress={handleScan}
+                    disabled={isScanning}
+                    activeOpacity={0.8}
+                >
+                    <View style={[styles.captureBtnInner, isScanning && styles.captureBtnInnerActive]}>
+                        <Aperture color={isScanning ? '#09090b' : '#fafafa'} size={22} strokeWidth={2} />
+                    </View>
+                </TouchableOpacity>
+                <Text style={styles.captureLabel}>
+                    {isScanning ? 'PROCESSING FRAME' : 'TRIGGER SCAN'}
+                </Text>
+            </View>
         </View>
     );
 }
@@ -333,11 +384,12 @@ export default function CameraScannerScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: theme.colors.canvas,
-        justifyContent: 'center',
+        backgroundColor: '#000000',
     },
     camera: {
         flex: 1,
+        width: '100%',
+        height: '100%',
     },
 
     // Permissions
@@ -416,36 +468,178 @@ const styles = StyleSheet.create({
         fontVariant: ['tabular-nums'],
     },
 
-    // Reticle
+    // Precision Road Capture Framing Guide (Centered)
     scannerWrapper: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 5,
+    },
+    maskTop: {
+        width: '100%',
         flex: 1,
+        backgroundColor: 'rgba(9, 9, 11, 0.45)',
+    },
+    scannerMiddleRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
         justifyContent: 'center',
+        width: '100%',
+        height: FRAME_HEIGHT,
+    },
+    maskSide: {
+        flex: 1,
+        height: '100%',
+        backgroundColor: 'rgba(9, 9, 11, 0.45)',
+    },
+    captureFrame: {
+        width: FRAME_WIDTH,
+        height: FRAME_HEIGHT,
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.35)',
+        borderRadius: 4,
+        position: 'relative',
+        backgroundColor: 'rgba(255, 255, 255, 0.02)',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 10,
+    },
+    captureFrameActive: {
+        borderColor: theme.colors.primary,
+        backgroundColor: 'rgba(249, 115, 22, 0.04)',
+    },
+    maskBottom: {
+        width: '100%',
+        flex: 1,
+        backgroundColor: 'rgba(9, 9, 11, 0.45)',
+    },
+
+    // Frame Header Indicator
+    frameHeader: {
+        width: '100%',
         alignItems: 'center',
     },
-    scannerBox: {
-        width: 260,
-        height: 260,
-        justifyContent: 'center',
+    frameHeaderBadge: {
+        flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'transparent',
+        gap: 6,
+        backgroundColor: 'rgba(9, 9, 11, 0.85)',
+        paddingHorizontal: 10,
+        paddingVertical: 5,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.15)',
     },
+    frameDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: theme.colors.primary,
+    },
+    frameDotScanning: {
+        backgroundColor: theme.colors.critical,
+    },
+    frameHeaderText: {
+        fontSize: 10,
+        fontWeight: '700',
+        color: '#fafafa',
+        letterSpacing: 0.8,
+    },
+
+    // Road Surface Horizon Reference
+    horizonLineContainer: {
+        position: 'absolute',
+        top: '32%',
+        left: 8,
+        right: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
+    horizonLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: 'rgba(255, 255, 255, 0.25)',
+    },
+    horizonLabel: {
+        fontSize: 8,
+        fontWeight: '600',
+        color: 'rgba(255, 255, 255, 0.65)',
+        letterSpacing: 0.5,
+    },
+
+    // Lateral Notches
+    notch: {
+        position: 'absolute',
+        top: '50%',
+        width: 8,
+        height: 2,
+        backgroundColor: theme.colors.primary,
+    },
+    notchLeft: { left: 0 },
+    notchRight: { right: 0 },
+
+    // Laser Scan Beam
     scanLine: {
         position: 'absolute',
         top: 0,
-        width: '100%',
-        height: 1,
+        left: 0,
+        right: 0,
+        height: 2,
         backgroundColor: theme.colors.primary,
+        shadowColor: theme.colors.primary,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 6,
+        elevation: 5,
     },
+
+    // Corner Brackets
     corner: {
         position: 'absolute',
-        width: 18,
-        height: 18,
-        borderColor: 'rgba(255, 255, 255, 0.45)',
+        width: 22,
+        height: 22,
+        borderColor: theme.colors.primary,
     },
-    topLeft: { top: 0, left: 0, borderTopWidth: 1.5, borderLeftWidth: 1.5 },
-    topRight: { top: 0, right: 0, borderTopWidth: 1.5, borderRightWidth: 1.5 },
-    bottomLeft: { bottom: 0, left: 0, borderBottomWidth: 1.5, borderLeftWidth: 1.5 },
-    bottomRight: { bottom: 0, right: 0, borderBottomWidth: 1.5, borderRightWidth: 1.5 },
+    cornerActive: {
+        borderColor: '#ffffff',
+    },
+    topLeft: { top: -1, left: -1, borderTopWidth: 3, borderLeftWidth: 3 },
+    topRight: { top: -1, right: -1, borderTopWidth: 3, borderRightWidth: 3 },
+    bottomLeft: { bottom: -1, left: -1, borderBottomWidth: 3, borderLeftWidth: 3 },
+    bottomRight: { bottom: -1, right: -1, borderBottomWidth: 3, borderRightWidth: 3 },
+
+    // Frame Footer Guidelines
+    frameFooter: {
+        width: '100%',
+        backgroundColor: 'rgba(9, 9, 11, 0.85)',
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.12)',
+        alignItems: 'center',
+        gap: 2,
+    },
+    frameFooterTitle: {
+        fontSize: 9.5,
+        fontWeight: '700',
+        color: theme.colors.primary,
+        letterSpacing: 0.6,
+        textAlign: 'center',
+    },
+    frameFooterSub: {
+        fontSize: 8,
+        fontWeight: '500',
+        color: 'rgba(255, 255, 255, 0.7)',
+        letterSpacing: 0.4,
+        textAlign: 'center',
+    },
 
     // Error
     errorPanel: {
@@ -566,6 +760,8 @@ const styles = StyleSheet.create({
         right: 0,
         alignItems: 'center',
         gap: 6,
+        zIndex: 30,
+        elevation: 10,
     },
     captureBtn: {
         width: 64,

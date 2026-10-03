@@ -60,7 +60,57 @@ class Report(Base):
             "num_detections": self.num_detections,
             "detections": json.loads(self.detections_json) if self.detections_json else [],
             "created_at": self.created_at.isoformat() if self.created_at else None,
-            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ForumPost(Base):
+    """Community crowdsourcing & discussion post."""
+    __tablename__ = "forum_posts"
+
+    id = Column(String, primary_key=True)
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    author_name = Column(String, default="Citizen Reporter")
+    category = Column(String, default="identification")  # identification | hotspot | repair-update | general
+    severity_tag = Column(String, default="unverified")   # minor | moderate | severe | unverified
+    image_url = Column(String, nullable=True)
+    pothole_id = Column(String, nullable=True)
+    upvotes = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self, comments_count=0):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "content": self.content,
+            "author_name": self.author_name,
+            "category": self.category,
+            "severity_tag": self.severity_tag,
+            "image_url": self.image_url,
+            "pothole_id": self.pothole_id,
+            "upvotes": self.upvotes,
+            "comments_count": comments_count,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ForumComment(Base):
+    """Comment on a forum discussion post."""
+    __tablename__ = "forum_comments"
+
+    id = Column(String, primary_key=True)
+    post_id = Column(String, nullable=False)
+    author_name = Column(String, default="Community Member")
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "post_id": self.post_id,
+            "author_name": self.author_name,
+            "content": self.content,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
 

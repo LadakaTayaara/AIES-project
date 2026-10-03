@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from api import reports, heatmap, dashboard, health
+from api import reports, heatmap, dashboard, health, forum
 from database import init_db
 
 # ── Logging setup ────────────────────────────────────────────────────
@@ -44,6 +44,7 @@ app.include_router(reports.router, prefix="/api/reports", tags=["Reports"])
 app.include_router(heatmap.router, prefix="/api/heatmap", tags=["Heatmap"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(health.router, prefix="/api", tags=["Health"])
+app.include_router(forum.router, prefix="/api/forum", tags=["Forum"])
 
 # ── Static file serving ─────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent

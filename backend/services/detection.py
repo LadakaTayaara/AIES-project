@@ -50,9 +50,23 @@ _model = None
 _model_type = None  # "finetuned" | "base" | None
 
 
+class YOLOModelWrapper:
+    """Wrapper around Ultralytics YOLO to match RF-DETR predict interface."""
+    def __init__(self, weights_path: str):
+        from ultralytics import YOLO
+        self.model = YOLO(weights_path)
+
+    def predict(self, image_path: str, threshold: float = 0.3):
+        import supervision as sv
+        results = self.model.predict(image_path, conf=threshold, verbose=False)
+        if results and len(results) > 0:
+            return sv.Detections.from_ultralytics(results[0])
+        return sv.Detections.empty()
+
+
 def load_model():
     """
-    Load the RF-DETR model. Tries fine-tuned weights first, then base model.
+    Load the detection model. Tries fine-tuned weights first, then fallback base model.
     The model is loaded once and cached globally.
     """
     global _model, _model_type
@@ -60,30 +74,37 @@ def load_model():
     if _model is not None:
         return _model, _model_type
 
-    try:
-        from rfdetr import RFDETRBase
-    except ImportError:
-        logger.error(
-            "rfdetr package not installed. "
-            "Install with: pip install rfdetr"
-        )
-        _model_type = None
-        return None, None
+    # ── 1. Try newly trained fine-tuned YOLO11/YOLO model ───────────
+    ml_weights_dir = Path(__file__).parent.parent.parent / "ml" / "model" / "weights"
+    yolo_candidates = [
+        ml_weights_dir / "yolo11s_pothole_severity" / "weights" / "best.pt",
+        ml_weights_dir / "yolov8_pothole" / "weights" / "best.pt",
+    ]
+    for candidate in yolo_candidates:
+        if candidate.exists():
+            try:
+                _model = YOLOModelWrapper(str(candidate))
+                _model_type = "finetuned"
+                logger.info(f"Loaded fine-tuned YOLO severity model from {candidate}")
+                return _model, _model_type
+            except Exception as e:
+                logger.warning(f"Failed to load YOLO model from {candidate}: {e}")
 
+    # ── 2. Try fine-tuned RF-DETR weights ──────────────────────────
     weights_path = settings.RFDETR_WEIGHTS_PATH
-
-    # ── Try fine-tuned weights ───────────────────────────────────
     if weights_path and os.path.isfile(weights_path):
         try:
+            from rfdetr import RFDETRBase
             _model = RFDETRBase(pretrain_weights=weights_path)
             _model_type = "finetuned"
             logger.info(f"Loaded fine-tuned RF-DETR from {weights_path}")
             return _model, _model_type
         except Exception as e:
-            logger.warning(f"Failed to load fine-tuned weights: {e}")
+            logger.warning(f"Failed to load fine-tuned RF-DETR weights: {e}")
 
-    # ── Fall back to pre-trained COCO model ──────────────────────
+    # ── 3. Fall back to pre-trained base model ─────────────────────
     try:
+        from rfdetr import RFDETRBase
         _model = RFDETRBase()
         _model_type = "base"
         logger.info("Loaded base RF-DETR model (COCO pre-trained)")

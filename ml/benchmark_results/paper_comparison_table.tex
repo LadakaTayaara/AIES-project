@@ -1,0 +1,19 @@
+% --- LaTeX Table: Direct Comparison with Base Paper (Kumari et al., IEEE 2023) ---
+\begin{table*}[t]
+\centering
+\caption{Performance Comparison with Baseline Road Pothole Detection Models}
+\label{tab:pothole_comparison}
+\begin{tabular}{lcccccc}
+\hline
+\textbf{Model / Study} & \textbf{mAP@0.5 (\%)} & \textbf{mAP@0.5:0.95 (\%)} & \textbf{Precision (\%)} & \textbf{Recall (\%)} & \textbf{Severity Grading} \\
+\hline
+YOLOv8n (Kumari et al. 2023) & 78.20 & 45.60 & 81.40 & 72.70 & No (1-class) \\
+YOLOv8s (Kumari et al. 2023) & 72.70 & 49.10 & 81.40 & 72.70 & No (1-class) \\
+YOLOv8m (Kumari et al. 2023) & 78.70 & 49.50 & 81.40 & 72.70 & No (1-class) \\
+YOLOv8l (Kumari et al. 2023) & 78.70 & 50.20 & 83.20 & 73.00 & No (1-class) \\
+YOLOv8x (Kumari et al. 2023) & 78.50 & 51.40 & 82.60 & 73.00 & No (1-class) \\
+\textbf{YOLO11s Proposed (Binary Pothole)} & \textbf{79.12} & \textbf{48.95} & \textbf{78.78} & \textbf{72.33} & \textbf{No (Apples-to-Apples)} \\
+\textbf{YOLO11s Proposed (3-Class Severity)} & \textbf{73.16} & \textbf{45.80} & \textbf{80.04} & \textbf{64.51} & \textbf{Yes (3-Class ASTM)} \\
+\hline
+\end{tabular}
+\end{table*}
