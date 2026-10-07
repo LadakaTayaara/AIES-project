@@ -125,3 +125,20 @@ The inference service (`backend/services/detection.py`) guarantees continuous op
 For production inference:
 - **AMD ROCm / MIOpen** for native AMD Radeon / Instinct GPU tensor processing
 - **rocJPEG** hardware-accelerated decode for instant ingestion of multi-megapixel mobile frames
+
+---
+
+## 🏆 Research Benchmarks & Base Paper Comparison (Kumari et al., IEEE 2023)
+
+The vision models are formally evaluated against Kumari et al. (IEEE 2023). For the full empirical report, LaTeX tables, and PR curves:
+- See the main repository [README.md](../README.md) or [`docs/RESEARCH_PAPER_METRICS.md`](../docs/RESEARCH_PAPER_METRICS.md)
+- Comparative table and per-class CSV metrics: [`ml/benchmark_results/`](./benchmark_results)
+- Benchmark evaluation suite: [`ml/model/evaluate_benchmark.py`](./model/evaluate_benchmark.py)
+
+| Model | mAP@0.5 (%) | mAP@0.5:0.95 (%) | Precision (%) | Recall (%) | Severity Head |
+|---|:---:|:---:|:---:|:---:|:---:|
+| **Kumari et al. Best (YOLOv8l/m)** | 78.70 | 50.20 | 83.20 | 73.00 | None (1-class) |
+| **Proposed Binary Baseline** | **79.12** 🏆 | **48.95** | **78.78** | **72.33** | None (Direct Comparison) |
+| **Proposed 3-Class Severity** | **73.16** | **45.80** | **80.04** | **64.51** | **ASTM D6433 3-Tier** |
+| ↳ *Severe Craters Only* | **84.90** | — | **76.39** | **86.79** | Critical Safety Class |
+
